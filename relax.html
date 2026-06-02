@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雅趣解压 · 中国风</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "STKaiti", "KaiTi", "FangSong", "Songti SC", "Noto Serif SC", serif;
+    overflow: hidden;
+    height: 100vh;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(244, 226, 196, 0.7) 0%, transparent 55%),
+      radial-gradient(ellipse at 75% 80%, rgba(228, 198, 208, 0.55) 0%, transparent 55%),
+      radial-gradient(ellipse at 90% 10%, rgba(175, 221, 234, 0.4) 0%, transparent 50%),
+      linear-gradient(135deg, #f5e6d3 0%, #ead8bb 50%, #d4b896 100%);
+    cursor: crosshair;
+    user-select: none;
+    transition: background 2.4s ease, filter 2.4s ease;
+  }
+
+  /* 落英 · 庭院氛围 */
+  body.dusk {
+    background: linear-gradient(180deg, #e8ddd0 0%, #f0e8dc 40%, #e6ddd2 70%, #d4cbbf 100%);
+  }
+
+  /* 宣纸纹理 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(139,115,85,0.03) 0px, transparent 1px, transparent 3px),
+      repeating-linear-gradient(90deg, rgba(139,115,85,0.03) 0px, transparent 1px, transparent 3px);
+    z-index: 1;
+    transition: opacity 2.4s ease;
+  }
+
+  body.dusk::before { opacity: 0.5; }
+
+  /* 暗角 vignette */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(60, 50, 40, 0.3) 100%);
+    opacity: 0;
+    transition: opacity 2.4s ease;
+  }
+  body.dusk .vignette { opacity: 1; }
+
+  /* 庭院画 */
+  .garden-scene {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    opacity: 0;
+    transition: opacity 2s ease 0.3s;
+  }
+  body.dusk .garden-scene { opacity: 1; }
+
+  /* 花簇随风轻摆 */
+  .blossom-cluster { transform-box: fill-box; }
+  .blossom-cluster path { transform-box: fill-box; transform-origin: center center; }
+  .sway-1 { animation: sway1 4s ease-in-out infinite; transform-origin: center bottom; }
+  .sway-2 { animation: sway2 5s ease-in-out infinite; transform-origin: center bottom; }
+  .sway-3 { animation: sway3 4.5s ease-in-out infinite; transform-origin: center bottom; }
+
+  @keyframes sway1 {
+    0%, 100% { transform: rotate(0deg) translateX(0); }
+    30% { transform: rotate(0.8deg) translateX(1.5px); }
+    70% { transform: rotate(-0.5deg) translateX(-1px); }
+  }
+  @keyframes sway2 {
+    0%, 100% { transform: rotate(0deg) translateX(0); }
+    40% { transform: rotate(-0.7deg) translateX(-1.2px); }
+    80% { transform: rotate(0.6deg) translateX(1px); }
+  }
+  @keyframes sway3 {
+    0%, 100% { transform: rotate(0deg) translateX(0); }
+    25% { transform: rotate(0.5deg) translateX(0.8px); }
+    60% { transform: rotate(-0.9deg) translateX(-1.5px); }
+  }
+
+  /* 庭院模式下的 UI 适配 */
+  body.dusk h1 { color: #5a3a2e; text-shadow: 0 1px 0 rgba(255,255,255,0.5); }
+  body.dusk .subtitle { color: #7d5a44; }
+  body.dusk .modes button { background: rgba(255, 250, 240, 0.55); color: #5a3a2e; border-color: rgba(90, 58, 46, 0.35); }
+  body.dusk .modes button.active { background: #5a3a2e; color: #fdf6e8; border-color: #5a3a2e; }
+  body.dusk .hint { background: rgba(255, 250, 240, 0.55); color: #5a3a2e; border-left-color: #8b3a3a; }
+  body.dusk .clear-btn { background: rgba(255, 250, 240, 0.55); color: #5a3a2e; border-color: rgba(90, 58, 46, 0.35); }
+  body.dusk .clear-btn:hover { background: #5a3a2e; color: #fdf6e8; }
+  body.dusk .corner-deco.tr { border-color: #5a3a2e; opacity: 0.6; }
+
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 5;
+  }
+
+  .ui {
+    position: fixed;
+    top: 36px;
+    left: 36px;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .ui > * { pointer-events: auto; }
+
+  h1 {
+    font-size: 36px;
+    font-weight: normal;
+    letter-spacing: 12px;
+    color: #6d2b3a;
+    margin-bottom: 4px;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.6);
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #8b6f47;
+    letter-spacing: 6px;
+    margin-bottom: 26px;
+    opacity: 0.85;
+  }
+
+  .modes {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    max-width: 380px;
+  }
+
+  .modes button {
+    padding: 9px 18px;
+    border: 1px solid rgba(109, 43, 58, 0.35);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #6d2b3a;
+    font-family: inherit;
+    font-size: 16px;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+  }
+
+  .modes button:hover {
+    background: rgba(230, 0, 18, 0.12);
+    transform: translateY(-2px);
+  }
+
+  .modes button.active {
+    background: #6d2b3a;
+    color: #f5e6d3;
+    border-color: #6d2b3a;
+    box-shadow: 0 4px 14px rgba(109, 43, 58, 0.35);
+  }
+
+  .hint {
+    font-size: 13px;
+    color: #5c4a36;
+    letter-spacing: 3px;
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 10px 16px;
+    display: inline-block;
+    border-left: 3px solid #6d2b3a;
+    max-width: 360px;
+    line-height: 1.8;
+  }
+
+  .clear-btn {
+    position: fixed;
+    bottom: 36px;
+    right: 36px;
+    z-index: 10;
+    padding: 12px 26px;
+    border: 1px solid rgba(74, 66, 102, 0.4);
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #4a4266;
+    font-family: inherit;
+    font-size: 16px;
+    letter-spacing: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .clear-btn:hover {
+    background: #4a4266;
+    color: #f5e6d3;
+    transform: translateY(-2px);
+  }
+
+  .seal {
+    position: fixed;
+    bottom: 40px;
+    left: 40px;
+    width: 76px;
+    height: 76px;
+    background: #c1272d;
+    color: #f5e6d3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 0;
+    line-height: 1;
+    border-radius: 4px;
+    transform: rotate(-6deg);
+    box-shadow: 0 6px 18px rgba(193, 39, 45, 0.45);
+    font-family: "FangSong", "STFangsong", serif;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .seal::before {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border: 1.5px solid #f5e6d3;
+    border-radius: 2px;
+  }
+
+  .seal span {
+    position: relative;
+    z-index: 1;
+    margin: 1px 0;
+  }
+
+  .corner-deco {
+    position: fixed;
+    width: 60px;
+    height: 60px;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  .corner-deco.tr { top: 24px; right: 24px; border-top: 2px solid #6d2b3a; border-right: 2px solid #6d2b3a; }
+  .corner-deco.bl { bottom: 24px; left: 24px; border-bottom: 2px solid #6d2b3a; border-left: 2px solid #6d2b3a; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div class="vignette"></div>
+
+<!-- 写意庭院 -->
+<svg class="garden-scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ece2d2"/>
+      <stop offset="60%" stop-color="#e6dccd"/>
+      <stop offset="100%" stop-color="#d8cfc0"/>
+    </linearGradient>
+    <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8f3eb"/>
+      <stop offset="60%" stop-color="#f0e9dd"/>
+      <stop offset="100%" stop-color="#dcd2c2"/>
+    </linearGradient>
+    <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#cabfae"/>
+      <stop offset="100%" stop-color="#a08e76"/>
+    </linearGradient>
+    <linearGradient id="trunkGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3a2818"/>
+      <stop offset="50%" stop-color="#5a3e2a"/>
+      <stop offset="100%" stop-color="#3a2818"/>
+    </linearGradient>
+    <radialGradient id="gateGrad" cx="0.5" cy="0.55" r="0.7">
+      <stop offset="0%" stop-color="#a89880" stop-opacity="0.35"/>
+      <stop offset="60%" stop-color="#8b7a64" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#5e4d3a" stop-opacity="0.7"/>
+    </radialGradient>
+    <radialGradient id="blossomGrad" cx="0.4" cy="0.4" r="0.6">
+      <stop offset="0%" stop-color="#fff0f5"/>
+      <stop offset="60%" stop-color="#f8c3cd"/>
+      <stop offset="100%" stop-color="#e8a0b4"/>
+    </radialGradient>
+    <clipPath id="gateClip">
+      <!-- 月洞门：圆心(1400,740) r=120，地面切线 y=840 -->
+      <!-- 圆与 y=840 的交点：x=1400±√(14400-10000)≈1400±66.3 -->
+      <path d="M 1333.7 840 A 120 120 0 1 1 1466.3 840 L 1333.7 840 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- 天空 -->
+  <rect width="1920" height="1080" fill="url(#skyGrad)"/>
+
+  <!-- 远山：最远，隐在薄雾中 -->
+  <path d="M-50 410
+           C 50 405, 90 398, 150 390
+           C 200 383, 230 365, 270 342
+           C 310 320, 340 330, 380 360
+           C 420 385, 480 398, 560 393
+           C 620 389, 660 368, 700 338
+           C 740 310, 770 318, 820 350
+           C 870 378, 940 392, 1040 387
+           C 1100 383, 1140 360, 1190 330
+           C 1230 305, 1260 315, 1310 348
+           C 1360 378, 1430 392, 1520 386
+           C 1580 381, 1620 358, 1670 328
+           C 1710 303, 1740 312, 1790 345
+           C 1840 375, 1900 388, 1970 385
+           L 1970 480 L -50 480 Z"
+        fill="#ccc5b8" opacity="0.25"/>
+
+  <!-- 中远山 -->
+  <path d="M-50 460
+           C 20 455, 60 445, 120 430
+           C 170 418, 210 395, 260 368
+           C 310 342, 345 352, 400 385
+           C 455 415, 530 435, 630 428
+           C 690 423, 730 400, 790 370
+           C 840 345, 880 355, 940 388
+           C 1000 418, 1080 432, 1180 425
+           C 1240 420, 1280 395, 1340 362
+           C 1390 335, 1430 345, 1490 380
+           C 1550 412, 1630 428, 1730 422
+           C 1790 418, 1830 395, 1880 372
+           C 1920 355, 1950 365, 1970 375
+           L 1970 520 L -50 520 Z"
+        fill="#b8b0a0" opacity="0.35"/>
+
+  <!-- 近山 -->
+  <path d="M-50 510
+           C 30 505, 80 492, 140 472
+           C 200 452, 250 425, 310 395
+           C 370 368, 410 378, 480 415
+           C 550 450, 640 475, 750 468
+           C 820 463, 870 438, 930 405
+           C 990 375, 1040 385, 1110 420
+           C 1180 452, 1280 470, 1390 462
+           C 1450 457, 1500 432, 1560 398
+           C 1620 368, 1660 378, 1720 412
+           C 1780 445, 1860 465, 1970 458
+           L 1970 550 L -50 550 Z"
+        fill="#a09585" opacity="0.42"/>
+
+  <!-- 山间薄雾 -->
+  <ellipse cx="700" cy="470" rx="380" ry="22" fill="#f0e8d8" opacity="0.5"/>
+  <ellipse cx="1400" cy="490" rx="320" ry="18" fill="#f0e8d8" opacity="0.45"/>
+
+  <!-- 山尖青绿（严格贴合山脊线，向下渐隐） -->
+  <defs>
+    <linearGradient id="gf1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a9a7a" stop-opacity="0.3"/>
+      <stop offset="60%" stop-color="#4a8a6a" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#4a8a6a" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="gf2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3d8b6b" stop-opacity="0.4"/>
+      <stop offset="55%" stop-color="#3d8b6b" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#3d8b6b" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="gf3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2d7a5a" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#2d7a5a" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#2d7a5a" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 远山青绿：复用远山路径上半段，底部截断在+30px -->
+  <path d="M-50 410
+           C 50 405, 90 398, 150 390
+           C 200 383, 230 365, 270 342
+           C 310 320, 340 330, 380 360
+           C 420 385, 480 398, 560 393
+           C 620 389, 660 368, 700 338
+           C 740 310, 770 318, 820 350
+           C 870 378, 940 392, 1040 387
+           C 1100 383, 1140 360, 1190 330
+           C 1230 305, 1260 315, 1310 348
+           C 1360 378, 1430 392, 1520 386
+           C 1580 381, 1620 358, 1670 328
+           C 1710 303, 1740 312, 1790 345
+           C 1840 375, 1900 388, 1970 385
+           L 1970 420 L -50 420 Z"
+        fill="url(#gf1)"/>
+
+  <!-- 中远山青绿 -->
+  <path d="M-50 460
+           C 20 455, 60 445, 120 430
+           C 170 418, 210 395, 260 368
+           C 310 342, 345 352, 400 385
+           C 455 415, 530 435, 630 428
+           C 690 423, 730 400, 790 370
+           C 840 345, 880 355, 940 388
+           C 1000 418, 1080 432, 1180 425
+           C 1240 420, 1280 395, 1340 362
+           C 1390 335, 1430 345, 1490 380
+           C 1550 412, 1630 428, 1730 422
+           C 1790 418, 1830 395, 1880 372
+           C 1920 355, 1950 365, 1970 375
+           L 1970 420 L -50 420 Z"
+        fill="url(#gf2)"/>
+
+  <!-- 近山青绿 -->
+  <path d="M-50 510
+           C 30 505, 80 492, 140 472
+           C 200 452, 250 425, 310 395
+           C 370 368, 410 378, 480 415
+           C 550 450, 640 475, 750 468
+           C 820 463, 870 438, 930 405
+           C 990 375, 1040 385, 1110 420
+           C 1180 452, 1280 470, 1390 462
+           C 1450 457, 1500 432, 1560 398
+           C 1620 368, 1660 378, 1720 412
+           C 1780 445, 1860 465, 1970 458
+           L 1970 500 L -50 500 Z"
+        fill="url(#gf3)"/>
+
+  <!-- 院墙 -->
+  <rect x="0" y="580" width="1920" height="260" fill="url(#wallGrad)"/>
+
+  <!-- 墙顶飞檐瓦片 -->
+  <path d="M0 578
+           Q 30 568 60 575 Q 90 568 120 575 Q 150 568 180 575
+           Q 210 568 240 575 Q 270 568 300 575 Q 330 568 360 575
+           Q 390 568 420 575 Q 450 568 480 575 Q 510 568 540 575
+           Q 570 568 600 575 Q 630 568 660 575 Q 690 568 720 575
+           Q 750 568 780 575 Q 810 568 840 575 Q 870 568 900 575
+           Q 930 568 960 575 Q 990 568 1020 575 Q 1050 568 1080 575
+           Q 1110 568 1140 575 Q 1170 568 1200 575 Q 1230 568 1260 575
+           Q 1290 568 1320 575 Q 1350 568 1380 575 Q 1410 568 1440 575
+           Q 1470 568 1500 575 Q 1530 568 1560 575 Q 1590 568 1620 575
+           Q 1650 568 1680 575 Q 1710 568 1740 575 Q 1770 568 1800 575
+           Q 1830 568 1860 575 Q 1890 568 1920 575
+           L 1920 590 L 0 590 Z"
+        fill="#5a4a3e" opacity="0.85"/>
+  <!-- 瓦片下方阴影线 -->
+  <line x1="0" y1="592" x2="1920" y2="592" stroke="#3d3024" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- 墙面斑驳质感 -->
+  <line x1="0" y1="690" x2="1920" y2="690" stroke="#c8bca8" stroke-width="0.5" opacity="0.4"/>
+  <line x1="0" y1="780" x2="1920" y2="780" stroke="#c8bca8" stroke-width="0.5" opacity="0.35"/>
+  <ellipse cx="450" cy="720" rx="80" ry="3" fill="#d8ccb8" opacity="0.25"/>
+  <ellipse cx="1100" cy="700" rx="60" ry="2" fill="#c8bca8" opacity="0.3"/>
+  <ellipse cx="1750" cy="740" rx="50" ry="2.5" fill="#c8bca8" opacity="0.25"/>
+
+  <!-- 古窗（方形四角被圆形向内切去，亚字窗变体） -->
+  <!-- 正方形120x120，四角用圆弧凹进 -->
+  <!-- 中心(720,710)，方框范围 660-780 x 650-770 -->
+  <defs>
+    <clipPath id="windowClip">
+      <!-- 路径：从左上凹角开始，顺时针走 -->
+      <path d="M 660 670
+               A 18 18 0 0 0 678 650
+               L 762 650
+               A 18 18 0 0 0 780 670
+               L 780 750
+               A 18 18 0 0 0 762 770
+               L 678 770
+               A 18 18 0 0 0 660 750
+               Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- 窗内风景 -->
+  <g clip-path="url(#windowClip)">
+    <rect x="660" y="650" width="120" height="120" fill="#d5ccbc"/>
+    <!-- 远山 -->
+    <path d="M660 730 Q 690 718, 720 724 Q 750 730, 780 720 L 780 770 L 660 770 Z"
+          fill="#a89c88" opacity="0.5"/>
+    <!-- 地面 -->
+    <rect x="660" y="748" width="120" height="22" fill="#b0a088" opacity="0.6"/>
+  </g>
+
+  <!-- 窗框 -->
+  <path d="M 660 670
+           A 18 18 0 0 0 678 650
+           L 762 650
+           A 18 18 0 0 0 780 670
+           L 780 750
+           A 18 18 0 0 0 762 770
+           L 678 770
+           A 18 18 0 0 0 660 750
+           Z"
+        fill="none" stroke="#4a3a2c" stroke-width="5" opacity="0.85"/>
+  <path d="M 660 670
+           A 18 18 0 0 0 678 650
+           L 762 650
+           A 18 18 0 0 0 780 670
+           L 780 750
+           A 18 18 0 0 0 762 770
+           L 678 770
+           A 18 18 0 0 0 660 750
+           Z"
+        fill="none" stroke="#7a6a55" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- 月洞门：穿透墙体 -->
+  <g clip-path="url(#gateClip)">
+    <!-- 门内天空 -->
+    <rect x="1280" y="600" width="240" height="250" fill="#d8d0bc"/>
+    <!-- 门内远山一角 -->
+    <path d="M1280 760 Q 1360 740 1420 750 Q 1470 755 1520 745 L 1520 800 L 1280 800 Z"
+          fill="#a89c88" opacity="0.5"/>
+    <!-- 门内地面 -->
+    <rect x="1280" y="795" width="240" height="50" fill="#b0a088" opacity="0.7"/>
+    <!-- 门内小路 -->
+    <path d="M1400 840 Q 1406 815 1414 795 Q 1420 780 1428 765"
+          stroke="#d4c8b0" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.65"/>
+    <path d="M1400 840 Q 1406 815 1414 795 Q 1420 780 1428 765"
+          stroke="#a89880" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.2"/>
+    <!-- 路边小草 -->
+    <line x1="1382" y1="818" x2="1380" y2="810" stroke="#7a8a6a" stroke-width="1" opacity="0.5"/>
+    <line x1="1438" y1="805" x2="1440" y2="797" stroke="#7a8a6a" stroke-width="1" opacity="0.5"/>
+    <!-- 远处小树 -->
+    <ellipse cx="1448" cy="748" rx="12" ry="16" fill="#8a8068" opacity="0.45"/>
+    <line x1="1448" y1="766" x2="1448" y2="778" stroke="#5a4838" stroke-width="1.5" opacity="0.5"/>
+  </g>
+
+  <!-- 月洞门门框：圆弧 + 底部门槛 -->
+  <path d="M 1333.7 840 A 120 120 0 1 1 1466.3 840" fill="none" stroke="#4a3a2c" stroke-width="7" opacity="0.85"/>
+  <path d="M 1333.7 840 A 120 120 0 1 1 1466.3 840" fill="none" stroke="#7a6a55" stroke-width="2.5" opacity="0.5"/>
+  <!-- 门槛（地面切线） -->
+  <rect x="1330" y="838" width="140" height="5" fill="#5a4838" opacity="0.75" rx="1"/>
+
+  <!-- 地面 -->
+  <rect x="0" y="840" width="1920" height="240" fill="url(#groundGrad)"/>
+
+  <!-- 主庭院石板路：从月洞门延伸到画面前方 -->
+  <path d="M1400 840 Q 1380 920 1320 1000 Q 1280 1050 1240 1080
+           L 1100 1080 Q 1180 1020 1260 950 Q 1340 880 1360 840 Z"
+        fill="#bfb29c" opacity="0.55"/>
+  <!-- 石板分隔线 -->
+  <path d="M1380 870 Q 1340 920 1290 990 Q 1250 1040 1220 1080" stroke="#9d8e76" stroke-width="0.8" fill="none" opacity="0.4"/>
+  <path d="M1390 855 L 1180 1080 M 1370 880 L 1140 1080 M 1330 920 L 1100 1080" stroke="#9d8e76" stroke-width="0.5" fill="none" opacity="0.3"/>
+
+  <!-- 樱树主干 -->
+  <path d="M310 1080 Q 320 1000 305 920 Q 290 850 315 780 Q 335 720 325 660 Q 320 620 335 580"
+        stroke="url(#trunkGrad)" stroke-width="32" fill="none" stroke-linecap="round"/>
+  <!-- 树皮纹理：竖向短线 -->
+  <g opacity="0.4" stroke="#1f1409" fill="none" stroke-linecap="round">
+    <path d="M315 1040 Q 313 1020 316 1000" stroke-width="1.2"/>
+    <path d="M308 980 Q 305 960 310 940" stroke-width="1"/>
+    <path d="M320 920 Q 318 900 314 880" stroke-width="1.2"/>
+    <path d="M300 860 Q 302 840 308 820" stroke-width="1"/>
+    <path d="M324 800 Q 322 780 326 760" stroke-width="1.1"/>
+    <path d="M332 720 Q 330 700 326 680" stroke-width="1"/>
+    <path d="M328 640 Q 332 620 330 600" stroke-width="1"/>
+  </g>
+
+  <!-- 主枝 右上 -->
+  <path d="M335 580 Q 380 525 460 495 Q 555 460 670 440 Q 760 425 850 410"
+        stroke="url(#trunkGrad)" stroke-width="16" fill="none" stroke-linecap="round"/>
+  <path d="M670 440 Q 720 400 785 370 Q 850 345 920 330"
+        stroke="#4a3525" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <path d="M460 495 Q 490 450 545 430 Q 595 410 640 380"
+        stroke="#4a3525" stroke-width="8" fill="none" stroke-linecap="round"/>
+
+  <!-- 主枝 左上 -->
+  <path d="M335 580 Q 295 525 240 505 Q 180 485 110 478 Q 50 472 -20 470"
+        stroke="url(#trunkGrad)" stroke-width="13" fill="none" stroke-linecap="round"/>
+  <path d="M240 505 Q 210 465 170 445 Q 130 430 80 415"
+        stroke="#4a3525" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+
+  <!-- 细枝 -->
+  <path d="M850 410 Q 900 395 950 388 Q 1000 382 1050 375" stroke="#5a4535" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <path d="M920 330 Q 970 315 1020 305 Q 1070 298 1120 290" stroke="#5a4535" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M640 380 Q 680 358 720 345 Q 760 335 800 325" stroke="#5a4535" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M545 430 Q 565 405 595 390 Q 615 380 635 372" stroke="#5a4535" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M80 415 Q 40 398 10 378" stroke="#5a4535" stroke-width="3.8" fill="none" stroke-linecap="round"/>
+  <path d="M170 445 Q 145 415 125 388 Q 110 365 95 338" stroke="#5a4535" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+
+  <!-- 嫩枝末梢 -->
+  <path d="M1050 375 Q 1090 368 1130 363" stroke="#6b5545" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M1120 290 Q 1160 283 1195 277" stroke="#6b5545" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M800 325 Q 830 318 860 314" stroke="#6b5545" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M635 372 Q 665 358 695 350" stroke="#6b5545" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M10 378 Q -20 363 -40 348" stroke="#6b5545" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M95 338 Q 78 313 65 288" stroke="#6b5545" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+  <!-- 右侧低垂枝 -->
+  <path d="M315 780 Q 365 760 408 745 Q 448 730 480 715"
+        stroke="#4a3525" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+  <path d="M480 715 Q 510 702 540 695 Q 575 688 605 685"
+        stroke="#5a4535" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M605 685 Q 635 685 660 690" stroke="#6b5545" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- 樱花簇：V缺口花瓣形状，与散花一致 -->
+  <!-- 花瓣路径模板（在defs中不可见，通过use引用） -->
+
+  <g class="blossom-cluster sway-1">
+    <!-- 右上枝头主簇 -->
+    <path d="M0,-8 C4.5,-6.5 7,-1.5 6,2.5 C5,5.5 2.5,7.5 0.5,7 L0,6 L-0.5,7 C-2.5,7.5 -5,5.5 -6,2.5 C-7,-1.5 -4.5,-6.5 0,-8Z" fill="#fef0f5" opacity="0.92" transform="translate(1130,363) scale(1.8) rotate(-15)"/>
+    <path d="M0,-7 C4,-5.5 6,-1 5,2 C4,5 2,6.5 0.4,6 L0,5.2 L-0.4,6 C-2,6.5 -4,5 -5,2 C-6,-1 -4,-5.5 0,-7Z" fill="#f8c3cd" opacity="0.88" transform="translate(1148,356) scale(1.8) rotate(25)"/>
+    <path d="M0,-7.5 C4.2,-6 6.5,-1.2 5.5,2.2 C4.5,5.2 2.2,7 0.4,6.5 L0,5.5 L-0.4,6.5 C-2.2,7 -4.5,5.2 -5.5,2.2 C-6.5,-1.2 -4.2,-6 0,-7.5Z" fill="#fce4ec" opacity="0.9" transform="translate(1115,372) scale(1.8) rotate(-40)"/>
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#f4b3c2" opacity="0.85" transform="translate(1158,370) scale(1.8) rotate(50)"/>
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#fff0f5" opacity="0.8" transform="translate(1098,367) scale(1.8) rotate(-60)"/>
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#f8c3cd" opacity="0.82" transform="translate(1140,380) scale(1.8) rotate(10)"/>
+  </g>
+
+  <g class="blossom-cluster sway-2">
+    <!-- 中部主簇 -->
+    <path d="M0,-9 C5,-7 7.5,-1.5 6.5,3 C5.5,6.5 3,8.5 0.5,8 L0,7 L-0.5,8 C-3,8.5 -5.5,6.5 -6.5,3 C-7.5,-1.5 -5,-7 0,-9Z" fill="#fef0f5" opacity="0.93" transform="translate(1195,277) scale(1.8) rotate(5)"/>
+    <path d="M0,-7 C4,-5.5 6,-1 5,2 C4,5 2,6.5 0.4,6 L0,5.2 L-0.4,6 C-2,6.5 -4,5 -5,2 C-6,-1 -4,-5.5 0,-7Z" fill="#f4b3c2" opacity="0.88" transform="translate(1212,285) scale(1.8) rotate(35)"/>
+    <path d="M0,-7.5 C4.2,-6 6.5,-1.2 5.5,2.2 C4.5,5.2 2.2,7 0.4,6.5 L0,5.5 L-0.4,6.5 C-2.2,7 -4.5,5.2 -5.5,2.2 C-6.5,-1.2 -4.2,-6 0,-7.5Z" fill="#fce4ec" opacity="0.85" transform="translate(1178,288) scale(1.8) rotate(-30)"/>
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#f8c3cd" opacity="0.82" transform="translate(1175,268) scale(1.8) rotate(-55)"/>
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#e8b4c8" opacity="0.8" transform="translate(1205,295) scale(1.8) rotate(60)"/>
+  </g>
+
+  <g class="blossom-cluster sway-3">
+    <!-- 中后主簇 -->
+    <path d="M0,-8 C4.5,-6.5 7,-1.5 6,2.5 C5,5.5 2.5,7.5 0.5,7 L0,6 L-0.5,7 C-2.5,7.5 -5,5.5 -6,2.5 C-7,-1.5 -4.5,-6.5 0,-8Z" fill="#fef0f5" opacity="0.92" transform="translate(860,314) scale(1.8) rotate(20)"/>
+    <path d="M0,-6.5 C3.8,-5.2 6,-1 5,2 C4,4.8 2,6.2 0.4,5.7 L0,4.8 L-0.4,5.7 C-2,6.2 -4,4.8 -5,2 C-6,-1 -3.8,-5.2 0,-6.5Z" fill="#f8c3cd" opacity="0.86" transform="translate(877,320) scale(1.8) rotate(-25)"/>
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#fce4ec" opacity="0.8" transform="translate(845,322) scale(1.8) rotate(45)"/>
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#f4b3c2" opacity="0.82" transform="translate(882,305) scale(1.8) rotate(-50)"/>
+  </g>
+
+  <g class="blossom-cluster sway-1">
+    <!-- 中下簇 -->
+    <path d="M0,-7 C4,-5.5 6,-1 5,2 C4,5 2,6.5 0.4,6 L0,5.2 L-0.4,6 C-2,6.5 -4,5 -5,2 C-6,-1 -4,-5.5 0,-7Z" fill="#fef0f5" opacity="0.88" transform="translate(695,350) scale(1.8) rotate(-10)"/>
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#f8c3cd" opacity="0.82" transform="translate(712,345) scale(1.8) rotate(30)"/>
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#fce4ec" opacity="0.78" transform="translate(683,358) scale(1.8) rotate(-45)"/>
+  </g>
+
+  <g class="blossom-cluster sway-2">
+    <!-- 左侧枝头 -->
+    <path d="M0,-7 C4,-5.5 6,-1 5,2 C4,5 2,6.5 0.4,6 L0,5.2 L-0.4,6 C-2,6.5 -4,5 -5,2 C-6,-1 -4,-5.5 0,-7Z" fill="#fef0f5" opacity="0.9" transform="translate(-40,348) scale(1.8) rotate(15)"/>
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#f8c3cd" opacity="0.82" transform="translate(-22,355) scale(1.8) rotate(-35)"/>
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#f4b3c2" opacity="0.78" transform="translate(-52,340) scale(1.8) rotate(55)"/>
+  </g>
+
+  <g class="blossom-cluster sway-3">
+    <!-- 左侧下枝 -->
+    <path d="M0,-6.5 C3.8,-5.2 6,-1 5,2 C4,4.8 2,6.2 0.4,5.7 L0,4.8 L-0.4,5.7 C-2,6.2 -4,4.8 -5,2 C-6,-1 -3.8,-5.2 0,-6.5Z" fill="#fef0f5" opacity="0.88" transform="translate(65,288) scale(1.8) rotate(-20)"/>
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#f8c3cd" opacity="0.82" transform="translate(82,295) scale(1.8) rotate(40)"/>
+    <path d="M0,-5 C2.8,-4 4.5,-0.5 3.5,1.5 C2.5,3.5 1.3,4.5 0.3,4 L0,3.3 L-0.3,4 C-1.3,4.5 -2.5,3.5 -3.5,1.5 C-4.5,-0.5 -2.8,-4 0,-5Z" fill="#f4b3c2" opacity="0.78" transform="translate(48,298) scale(1.8) rotate(-50)"/>
+  </g>
+
+  <g class="blossom-cluster sway-1">
+    <!-- 低垂枝末端簇 -->
+    <path d="M0,-7 C4,-5.5 6,-1 5,2 C4,5 2,6.5 0.4,6 L0,5.2 L-0.4,6 C-2,6.5 -4,5 -5,2 C-6,-1 -4,-5.5 0,-7Z" fill="#fef0f5" opacity="0.9" transform="translate(660,690) scale(1.8) rotate(10)"/>
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#f8c3cd" opacity="0.82" transform="translate(678,697) scale(1.8) rotate(-30)"/>
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#fce4ec" opacity="0.78" transform="translate(648,700) scale(1.8) rotate(55)"/>
+  </g>
+
+  <g class="blossom-cluster sway-2">
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#fef0f5" opacity="0.82" transform="translate(1050,375) scale(1.8) rotate(-20)"/>
+    <path d="M0,-5 C2.8,-4 4.5,-0.5 3.5,1.5 C2.5,3.5 1.3,4.5 0.3,4 L0,3.3 L-0.3,4 C-1.3,4.5 -2.5,3.5 -3.5,1.5 C-4.5,-0.5 -2.8,-4 0,-5Z" fill="#f8c3cd" opacity="0.75" transform="translate(1062,382) scale(1.8) rotate(35)"/>
+  </g>
+
+  <g class="blossom-cluster sway-3">
+    <path d="M0,-5.5 C3,-4.5 5,-0.5 4,1.8 C3,4 1.5,5 0.3,4.6 L0,3.8 L-0.3,4.6 C-1.5,5 -3,4 -4,1.8 C-5,-0.5 -3,-4.5 0,-5.5Z" fill="#fef0f5" opacity="0.82" transform="translate(950,388) scale(1.8) rotate(25)"/>
+    <path d="M0,-5 C2.8,-4 4.5,-0.5 3.5,1.5 C2.5,3.5 1.3,4.5 0.3,4 L0,3.3 L-0.3,4 C-1.3,4.5 -2.5,3.5 -3.5,1.5 C-4.5,-0.5 -2.8,-4 0,-5Z" fill="#f4b3c2" opacity="0.75" transform="translate(938,395) scale(1.8) rotate(-40)"/>
+  </g>
+
+  <g class="blossom-cluster sway-1">
+    <path d="M0,-6 C3.5,-5 5.5,-0.8 4.5,2 C3.5,4.5 1.8,5.8 0.3,5.3 L0,4.5 L-0.3,5.3 C-1.8,5.8 -3.5,4.5 -4.5,2 C-5.5,-0.8 -3.5,-5 0,-6Z" fill="#fef0f5" opacity="0.85" transform="translate(595,390) scale(1.8) rotate(-15)"/>
+    <path d="M0,-5 C2.8,-4 4.5,-0.5 3.5,1.5 C2.5,3.5 1.3,4.5 0.3,4 L0,3.3 L-0.3,4 C-1.3,4.5 -2.5,3.5 -3.5,1.5 C-4.5,-0.5 -2.8,-4 0,-5Z" fill="#f8c3cd" opacity="0.78" transform="translate(612,385) scale(1.8) rotate(40)"/>
+    <path d="M0,-5 C2.8,-4 4.5,-0.5 3.5,1.5 C2.5,3.5 1.3,4.5 0.3,4 L0,3.3 L-0.3,4 C-1.3,4.5 -2.5,3.5 -3.5,1.5 C-4.5,-0.5 -2.8,-4 0,-5Z" fill="#f4b3c2" opacity="0.72" transform="translate(583,398) scale(1.8) rotate(-55)"/>
+  </g>
+
+  <!-- 墙角苔藓 -->
+  <ellipse cx="200" cy="838" rx="50" ry="9" fill="#7a9a6a" opacity="0.22"/>
+  <ellipse cx="1700" cy="840" rx="38" ry="7" fill="#7a9a6a" opacity="0.18"/>
+  <ellipse cx="1300" cy="836" rx="25" ry="5" fill="#7a9a6a" opacity="0.15"/>
+
+  <!-- 落花暗示（地面静态花瓣） -->
+  <ellipse cx="400" cy="870" rx="4" ry="2.5" fill="#f4b3c2" opacity="0.5" transform="rotate(-20 400 870)"/>
+  <ellipse cx="550" cy="890" rx="3.5" ry="2" fill="#f8c3cd" opacity="0.45" transform="rotate(15 550 890)"/>
+  <ellipse cx="700" cy="875" rx="4" ry="2.5" fill="#fce4ec" opacity="0.4" transform="rotate(-35 700 875)"/>
+  <ellipse cx="280" cy="888" rx="3" ry="2" fill="#e8b4c8" opacity="0.4" transform="rotate(25 280 888)"/>
+  <ellipse cx="850" cy="895" rx="3.5" ry="2" fill="#f4b3c2" opacity="0.35" transform="rotate(-10 850 895)"/>
+  <ellipse cx="1050" cy="905" rx="4" ry="2.5" fill="#fce4ec" opacity="0.4" transform="rotate(40 1050 905)"/>
+  <ellipse cx="450" cy="925" rx="3" ry="2" fill="#f8c3cd" opacity="0.35" transform="rotate(-25 450 925)"/>
+</svg>
+
+<div class="corner-deco tr"></div>
+
+<div class="ui">
+  <h1>雅趣解压</h1>
+  <div class="subtitle">— 一笔一画，皆为闲情 —</div>
+  <div class="modes">
+    <button data-mode="ink" class="active">水墨</button>
+    <button data-mode="petals">落英</button>
+    <button data-mode="firework">烟花</button>
+    <button data-mode="ripple">涟漪</button>
+    <button data-mode="bloom">花开</button>
+  </div>
+  <div class="hint" id="hint">按住鼠标，挥毫泼墨</div>
+</div>
+
+<button class="clear-btn" id="clearBtn">清 屏</button>
+
+<div class="seal"><span>闲</span><span>趣</span></div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// 中国传统色彩
+const colors = {
+  inks: ['#1a1a1a', '#2c2c2c', '#3d3d4a', '#4a4266', '#1c2938', '#392f41'],
+  petals: ['#f47983', '#ee4866', '#e4c6d0', '#f0a1a8', '#ffb3a7', '#fbc4ab', '#c83c23'],
+  fireworks: ['#e60012', '#f0c239', '#afdd22', '#5089b7', '#9d2933', '#fff143', '#ed5736', '#fcef8d', '#7bcfa6'],
+  ripples: ['#5089b7', '#3b818c', '#7bcfa6', '#88ada6', '#4b5cc4'],
+  blooms: {
+    petal: ['#f47983', '#ee4866', '#e4c6d0', '#9d2933', '#ffb3a7', '#c83c23'],
+    center: ['#f0c239', '#fff143', '#fcef8d', '#e29c45']
+  }
+};
+
+let particles = [];
+let mode = 'ink';
+let isDrawing = false;
+let lastX = 0, lastY = 0;
+let lastTime = 0;
+
+const hints = {
+  ink: '按住鼠标，挥毫泼墨',
+  petals: '按住鼠标，天女散花',
+  firework: '点击屏幕，烟花绽放',
+  ripple: '点击水面，涟漪荡漾',
+  bloom: '点击大地，花开锦簇'
+};
+
+// ========== 水墨 ==========
+function drawInk(x, y, lx, ly, speed) {
+  const color = colors.inks[Math.floor(Math.random() * colors.inks.length)];
+  const thickness = Math.max(2, 20 - speed * 0.5);
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = thickness;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.globalAlpha = 0.75;
+  ctx.beginPath();
+  ctx.moveTo(lx, ly);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  // 墨晕散开
+  if (Math.random() < 0.5) {
+    for (let i = 0; i < 4; i++) {
+      const ox = (Math.random() - 0.5) * thickness * 2.5;
+      const oy = (Math.random() - 0.5) * thickness * 2.5;
+      ctx.globalAlpha = Math.random() * 0.35;
+      ctx.beginPath();
+      ctx.arc(x + ox, y + oy, Math.random() * 2.5 + 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+  }
+
+  // 飞白效果
+  if (speed > 30 && Math.random() < 0.4) {
+    ctx.globalAlpha = 0.2;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lx + (Math.random() - 0.5) * thickness, ly + (Math.random() - 0.5) * thickness);
+    ctx.lineTo(x + (Math.random() - 0.5) * thickness, y + (Math.random() - 0.5) * thickness);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ========== 落英 · 樱花 ==========
+const sakuraColors = {
+  front: ['#fef0f5', '#fce4ec', '#f8c3cd', '#f4b3c2', '#e8b4c8'],
+  back: ['#e8a0b4', '#d4899e', '#c97d92', '#b8687d'],
+  rare: ['#c83c50', '#a83248', '#943050']
+};
+
+let mouseX = canvas.width / 2, mouseY = canvas.height / 2;
+let groundPetals = [];
+const MAX_GROUND = 80;
+
+// 预渲染樱花瓣 sprites（解决性能问题）
+const SPRITE_SIZE = 48;
+const sakuraSprites = { front: [], back: [] };
+
+function buildPetalPath(c, s, widthRatio, notchDepth) {
+  const w = s * widthRatio;
+  const notch = s * notchDepth;
+  c.beginPath();
+  c.moveTo(0, -s);
+  c.bezierCurveTo(w * 0.6, -s * 0.8, w, -s * 0.2, w * 0.85, s * 0.3);
+  c.bezierCurveTo(w * 0.7, s * 0.7, w * 0.3, s * 0.95, notch * 0.3, s - notch * 0.3);
+  c.lineTo(0, s - notch);
+  c.lineTo(-notch * 0.3, s - notch * 0.3);
+  c.bezierCurveTo(-w * 0.3, s * 0.95, -w * 0.7, s * 0.7, -w * 0.85, s * 0.3);
+  c.bezierCurveTo(-w, -s * 0.2, -w * 0.6, -s * 0.8, 0, -s);
+  c.closePath();
+}
+
+function makeSprite(color, isFront) {
+  const cv = document.createElement('canvas');
+  cv.width = SPRITE_SIZE;
+  cv.height = SPRITE_SIZE;
+  const c = cv.getContext('2d');
+  c.translate(SPRITE_SIZE / 2, SPRITE_SIZE / 2);
+  const s = SPRITE_SIZE * 0.42;
+  const widthRatio = 0.78;
+  const notchDepth = 0.2;
+
+  buildPetalPath(c, s, widthRatio, notchDepth);
+
+  const grad = c.createLinearGradient(0, -s, 0, s);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.7, color);
+  grad.addColorStop(1, isFront ? 'rgba(200,140,160,0.5)' : 'rgba(160,100,120,0.55)');
+  c.fillStyle = grad;
+  c.fill();
+
+  // 脉络
+  c.globalAlpha = 0.18;
+  c.strokeStyle = isFront ? '#d4899e' : '#a06070';
+  c.lineWidth = 0.6;
+  c.beginPath();
+  c.moveTo(0, -s * 0.7);
+  c.quadraticCurveTo(s * widthRatio * 0.1, 0, 0, s - s * notchDepth);
+  c.stroke();
+
+  return cv;
+}
+
+sakuraColors.front.forEach(col => sakuraSprites.front.push({ color: col, img: makeSprite(col, true) }));
+sakuraColors.rare.forEach(col => sakuraSprites.front.push({ color: col, img: makeSprite(col, true), rare: true }));
+sakuraColors.back.forEach(col => sakuraSprites.back.push({ color: col, img: makeSprite(col, false) }));
+
+class SakuraPetal {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    const r = Math.random();
+    this.layer = r < 0.25 ? 'far' : r < 0.75 ? 'mid' : 'near';
+
+    const scale = this.layer === 'far' ? 0.55 : this.layer === 'near' ? 1.35 : 1;
+    this.size = (10 + Math.random() * 6) * scale;
+
+    // 天女散花：初速朝向下方扇形散开（更快）
+    const angle = Math.PI * 0.5 + (Math.random() - 0.5) * Math.PI * 0.9;
+    const initSpeed = 2.5 + Math.random() * 5;
+    this.vx = Math.cos(angle) * initSpeed;
+    this.vy = Math.sin(angle) * initSpeed;
+
+    const speedScale = this.layer === 'far' ? 0.75 : this.layer === 'near' ? 1.2 : 1;
+    this.terminalVy = (2.5 + Math.random() * 1.2) * speedScale;
+    this.gravity = 0.098;
+
+    this.rotation = Math.random() * Math.PI * 2;
+    this.rotSpeed = (Math.random() - 0.5) * 0.08;
+
+    this.flipPhase = Math.random() * Math.PI * 2;
+    this.flipSpeed = 0.04 + Math.random() * 0.03;
+
+    this.swingPhase = Math.random() * Math.PI * 2;
+    this.swingFreq = 0.04 + Math.random() * 0.03;
+    this.swingAmp = 0.8 + Math.random() * 0.6;
+
+    const frontPick = sakuraSprites.front[Math.floor(Math.random() * sakuraSprites.front.length)];
+    const backPick = sakuraSprites.back[Math.floor(Math.random() * sakuraSprites.back.length)];
+    this.frontImg = frontPick.img;
+    this.backImg = backPick.img;
+    this.frontColor = frontPick.color;
+
+    this.alpha = this.layer === 'far' ? 0.55 : this.layer === 'near' ? 0.92 : 0.85;
+    this.life = 1;
+    this.state = 'falling';
+    this.groundY = 0;
+    this.bounceVy = 0;
+    this.fadeTimer = 0;
+    this.type = 'sakura';
+  }
+
+  update() {
+    if (this.state === 'falling') {
+      this.swingPhase += this.swingFreq;
+      const swing = Math.sin(this.swingPhase) * this.swingAmp;
+
+      this.vy += this.gravity;
+      this.vx *= 0.99;
+      if (this.vy > this.terminalVy) {
+        this.vy = this.terminalVy + (this.vy - this.terminalVy) * 0.85;
+      }
+
+      this.x += this.vx + swing * 0.5;
+      this.y += this.vy;
+
+      this.flipPhase += this.flipSpeed;
+      this.rotation += this.rotSpeed;
+      this.rotSpeed *= 0.99;
+
+      const groundLine = canvas.height - 30;
+      if (this.y > groundLine) {
+        this.state = 'landing';
+        this.groundY = this.y;
+        this.bounceVy = -1.5 - Math.random() * 1.2;
+      }
+
+      if (this.x < -60 || this.x > canvas.width + 60) this.life = 0;
+
+    } else if (this.state === 'landing') {
+      this.bounceVy += 0.4;
+      this.y += this.bounceVy;
+      this.rotation += this.rotSpeed * 0.5;
+      this.rotSpeed *= 0.85;
+      if (this.y >= this.groundY) {
+        this.y = this.groundY;
+        this.state = 'grounded';
+        this.fadeTimer = 0;
+      }
+    } else if (this.state === 'grounded') {
+      this.fadeTimer++;
+      if (this.fadeTimer > 40) {
+        this.life -= 0.008;
+      }
+    }
+  }
+
+  draw(ctx) {
+    const flip = Math.cos(this.flipPhase);
+    const absFlip = Math.abs(flip);
+    if (absFlip < 0.05) return;
+    const isFront = flip > 0;
+    const img = isFront ? this.frontImg : this.backImg;
+
+    ctx.globalAlpha = this.alpha * this.life * (0.65 + absFlip * 0.35);
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    const drawW = this.size * 2 * absFlip;
+    const drawH = this.size * 2;
+    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+  }
+}
+
+function scatterSakura(cx, cy, count) {
+  for (let i = 0; i < count; i++) {
+    const ox = (Math.random() - 0.5) * 16;
+    const oy = (Math.random() - 0.5) * 12;
+    particles.push(new SakuraPetal(cx + ox, cy + oy));
+  }
+}
+
+// ========== 烟花 ==========
+class FireworkParticle {
+  constructor(x, y, angle, speed, color) {
+    this.x = x;
+    this.y = y;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.color = color;
+    this.life = 1;
+    this.decay = 0.012 + Math.random() * 0.01;
+    this.size = Math.random() * 2 + 1.5;
+    this.trail = [];
+    this.type = 'firework';
+  }
+  update() {
+    this.trail.push({x: this.x, y: this.y});
+    if (this.trail.length > 10) this.trail.shift();
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.06;
+    this.vx *= 0.985;
+    this.vy *= 0.985;
+    this.life -= this.decay;
+  }
+  draw(ctx) {
+    for (let i = 0; i < this.trail.length; i++) {
+      const t = this.trail[i];
+      ctx.globalAlpha = (i / this.trail.length) * this.life * 0.5;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, this.size * (i / this.trail.length), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = this.life;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = this.color;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+}
+
+function createFirework(x, y) {
+  const baseColor = colors.fireworks[Math.floor(Math.random() * colors.fireworks.length)];
+  const count = 60 + Math.floor(Math.random() * 30);
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.3;
+    const speed = 2 + Math.random() * 5;
+    const color = Math.random() < 0.7 ? baseColor : colors.fireworks[Math.floor(Math.random() * colors.fireworks.length)];
+    particles.push(new FireworkParticle(x, y, angle, speed, color));
+  }
+  // 二次小爆
+  setTimeout(() => {
+    const count2 = 20;
+    const c2 = colors.fireworks[Math.floor(Math.random() * colors.fireworks.length)];
+    for (let i = 0; i < count2; i++) {
+      const angle = (Math.PI * 2 / count2) * i;
+      particles.push(new FireworkParticle(x, y, angle, 1.5 + Math.random(), c2));
+    }
+  }, 200);
+}
+
+// ========== 涟漪 ==========
+class Ripple {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 0;
+    this.maxRadius = 200 + Math.random() * 120;
+    this.life = 1;
+    this.color = colors.ripples[Math.floor(Math.random() * colors.ripples.length)];
+    this.speed = 2.5 + Math.random();
+    this.type = 'ripple';
+  }
+  update() {
+    this.radius += this.speed;
+    this.life = 1 - this.radius / this.maxRadius;
+  }
+  draw(ctx) {
+    ctx.strokeStyle = this.color;
+    ctx.globalAlpha = this.life * 0.7;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha = this.life * 0.4;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha = this.life * 0.25;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 0.45, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ========== 花开 ==========
+class Bloom {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.size = 0;
+    this.maxSize = 32 + Math.random() * 28;
+    this.life = 1;
+    this.petalCount = 5 + Math.floor(Math.random() * 3);
+    this.rotation = Math.random() * Math.PI * 2;
+    this.petalColor = colors.blooms.petal[Math.floor(Math.random() * colors.blooms.petal.length)];
+    this.centerColor = colors.blooms.center[Math.floor(Math.random() * colors.blooms.center.length)];
+    this.growSpeed = 0.09;
+    this.type = 'bloom';
+    this.fadeStart = false;
+    this.holdTime = 60 + Math.random() * 40;
+    this.age = 0;
+  }
+  update() {
+    this.age++;
+    if (this.size < this.maxSize - 0.5) {
+      this.size += (this.maxSize - this.size) * this.growSpeed;
+    } else if (this.age > this.holdTime) {
+      this.life -= 0.006;
+    }
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    ctx.globalAlpha = this.life * 0.92;
+
+    // 花瓣
+    for (let i = 0; i < this.petalCount; i++) {
+      const angle = (Math.PI * 2 / this.petalCount) * i;
+      ctx.save();
+      ctx.rotate(angle);
+      const grad = ctx.createRadialGradient(0, this.size * 0.55, 0, 0, this.size * 0.55, this.size);
+      grad.addColorStop(0, this.petalColor);
+      grad.addColorStop(0.6, this.petalColor);
+      grad.addColorStop(1, this.petalColor + '00');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(0, this.size * 0.55, this.size * 0.42, this.size * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 花蕊底色
+    ctx.fillStyle = this.centerColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.size * 0.26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 蕊点
+    ctx.fillStyle = '#9d2933';
+    for (let i = 0; i < 7; i++) {
+      const a = (Math.PI * 2 / 7) * i;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * this.size * 0.16, Math.sin(a) * this.size * 0.16, this.size * 0.045, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
+
+// ========== 鼠标事件 ==========
+canvas.addEventListener('mousedown', e => {
+  isDrawing = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  lastTime = Date.now();
+
+  if (mode === 'firework') {
+    createFirework(e.clientX, e.clientY);
+  } else if (mode === 'ripple') {
+    particles.push(new Ripple(e.clientX, e.clientY));
+    setTimeout(() => particles.push(new Ripple(e.clientX, e.clientY)), 180);
+    setTimeout(() => particles.push(new Ripple(e.clientX, e.clientY)), 360);
+  } else if (mode === 'bloom') {
+    particles.push(new Bloom(e.clientX, e.clientY));
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 35 + Math.random() * 60;
+      setTimeout(() => particles.push(new Bloom(e.clientX + Math.cos(a) * r, e.clientY + Math.sin(a) * r)), 80 + i * 100);
+    }
+  } else if (mode === 'ink') {
+    drawInk(e.clientX, e.clientY, e.clientX - 0.1, e.clientY, 5);
+  } else if (mode === 'petals') {
+    // 起手散一把
+    scatterSakura(e.clientX, e.clientY, 3);
+  }
+});
+
+canvas.addEventListener('mouseup', () => { isDrawing = false; });
+canvas.addEventListener('mouseleave', () => { isDrawing = false; });
+
+canvas.addEventListener('mousemove', e => {
+  const x = e.clientX, y = e.clientY;
+  mouseX = x;
+  mouseY = y;
+
+  if (mode === 'ink' && isDrawing) {
+    const now = Date.now();
+    const dt = Math.max(1, now - lastTime);
+    const dx = x - lastX, dy = y - lastY;
+    const speed = Math.sqrt(dx*dx + dy*dy) / dt * 16;
+    drawInk(x, y, lastX, lastY, speed);
+    lastX = x; lastY = y; lastTime = now;
+  }
+});
+
+// 触摸支持
+canvas.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  canvas.dispatchEvent(new MouseEvent('mousedown', {clientX: t.clientX, clientY: t.clientY}));
+  e.preventDefault();
+}, {passive: false});
+canvas.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  canvas.dispatchEvent(new MouseEvent('mousemove', {clientX: t.clientX, clientY: t.clientY}));
+  e.preventDefault();
+}, {passive: false});
+canvas.addEventListener('touchend', () => {
+  canvas.dispatchEvent(new MouseEvent('mouseup'));
+});
+
+// ========== 模式切换 ==========
+document.querySelectorAll('.modes button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.modes button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    document.getElementById('hint').textContent = hints[mode];
+
+    if (mode === 'petals') {
+      document.body.classList.add('dusk');
+    } else {
+      document.body.classList.remove('dusk');
+    }
+  });
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  particles = [];
+  groundPetals = [];
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+
+// ========== 动画循环 ==========
+function animate() {
+  if (mode === 'petals') {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 绘制地面积瓣
+    groundPetals.forEach(gp => {
+      gp.alpha *= 0.998;
+      if (gp.alpha > 0.05) {
+        ctx.globalAlpha = gp.alpha;
+        ctx.fillStyle = gp.color;
+        ctx.save();
+        ctx.translate(gp.x, gp.y);
+        ctx.rotate(gp.rotation);
+        ctx.scale(0.7, 0.4);
+        ctx.beginPath();
+        ctx.arc(0, 0, gp.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    });
+    groundPetals = groundPetals.filter(gp => gp.alpha > 0.05);
+    ctx.globalAlpha = 1;
+
+    // 持续散花：按住鼠标时每帧撒1片
+    if (isDrawing && particles.length < 500) {
+      scatterSakura(mouseX, mouseY, 1);
+    }
+
+    // 一次遍历：更新 + 绘制 + 积瓣处理
+    const survivors = [];
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.update();
+      p.draw(ctx);
+      if (p.life > 0) {
+        survivors.push(p);
+      } else if (p.type === 'sakura' && p.state === 'grounded' && groundPetals.length < MAX_GROUND) {
+        groundPetals.push({
+          x: p.x, y: p.y, rotation: p.rotation,
+          size: p.size * 0.6, color: p.frontColor, alpha: 0.35
+        });
+      }
+    }
+    particles = survivors;
+    ctx.globalAlpha = 1;
+
+  } else {
+    // 非落英模式
+    if (mode !== 'ink') {
+      ctx.fillStyle = 'rgba(245, 230, 211, 0.08)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    particles = particles.filter(p => {
+      p.update();
+      p.draw(ctx);
+      return p.life > 0;
+    });
+  }
+
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

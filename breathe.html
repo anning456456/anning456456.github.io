@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>静呼吸 · 缓解焦虑</title>
+<style>
+  :root {
+    --bg-1: #1b2a4a;
+    --bg-2: #2d4a6b;
+    --orb-1: #7fd8c4;
+    --orb-2: #5a9fd4;
+    --text: rgba(255, 255, 255, 0.92);
+    --text-dim: rgba(255, 255, 255, 0.55);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  body {
+    background: radial-gradient(circle at 50% 40%, var(--bg-2), var(--bg-1) 70%);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: background 6s ease;
+  }
+
+  /* 缓慢漂浮的背景光斑,营造平静氛围 */
+  .ambient {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .ambient span {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(127, 216, 196, 0.18), transparent 70%);
+    animation: drift linear infinite;
+  }
+  @keyframes drift {
+    from { transform: translateY(110vh) translateX(0) scale(0.6); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    to   { transform: translateY(-20vh) translateX(40px) scale(1.1); opacity: 0; }
+  }
+
+  .stage {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+
+  /* 呼吸圆 */
+  .orb-wrap {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .orb {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--orb-1), var(--orb-2));
+    box-shadow: 0 0 60px rgba(127, 216, 196, 0.45),
+                0 0 120px rgba(90, 159, 212, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    will-change: transform;
+  }
+  .phase-text {
+    font-size: 22px;
+    letter-spacing: 4px;
+    font-weight: 300;
+    color: rgba(27, 42, 74, 0.85);
+  }
+
+  .count {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    min-height: 22px;
+    transition: opacity 0.4s;
+  }
+
+  /* 控制区 */
+  .controls {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    margin-top: 44px;
+  }
+  .modes {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .mode-btn {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-dim);
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s;
+    backdrop-filter: blur(6px);
+  }
+  .mode-btn:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.35); }
+  .mode-btn.active {
+    background: rgba(127, 216, 196, 0.22);
+    border-color: var(--orb-1);
+    color: var(--text);
+  }
+  .play-btn {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: var(--text);
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+  .play-btn:hover { transform: scale(1.06); background: rgba(255, 255, 255, 0.2); }
+
+  .hint {
+    position: fixed;
+    bottom: 24px;
+    z-index: 1;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-align: center;
+    line-height: 1.7;
+  }
+  .sound-toggle {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .sound-toggle:hover { color: var(--text); }
+
+  @media (max-width: 480px) {
+    .orb-wrap { width: 220px; height: 220px; }
+    .stage { gap: 32px; }
+  }
+</style>
+</head>
+<body>
+  <div class="ambient" id="ambient"></div>
+
+  <div class="stage">
+    <div class="orb-wrap">
+      <div class="ring"></div>
+      <div class="orb" id="orb">
+        <span class="phase-text" id="phaseText">准备</span>
+      </div>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <div class="controls">
+    <div class="modes" id="modes">
+      <button class="mode-btn active" data-mode="relax">放松呼吸 · 4-6</button>
+      <button class="mode-btn" data-mode="box">方块呼吸 · 4-4-4-4</button>
+      <button class="mode-btn" data-mode="478">4-7-8 助眠</button>
+    </div>
+    <button class="play-btn" id="playBtn" aria-label="开始/暂停">▶</button>
+  </div>
+
+  <div class="hint">
+    跟随圆的胀缩调整呼吸 · 圆变大时吸气,变小时呼气<br>
+    <button class="sound-toggle" id="soundToggle">🔇 开启引导音</button>
+  </div>
+
+<script>
+  // 三种呼吸模式,每个阶段: [类型, 时长(秒)]
+  // type: inhale 吸气 / hold 屏息 / exhale 呼气
+  const MODES = {
+    relax: {
+      bg: ['#1b2a4a', '#2d4a6b'],
+      phases: [
+        { type: 'inhale', label: '吸气', dur: 4 },
+        { type: 'exhale', label: '呼气', dur: 6 },
+      ],
+    },
+    box: {
+      bg: ['#1d3a3a', '#2d5b54'],
+      phases: [
+        { type: 'inhale', label: '吸气', dur: 4 },
+        { type: 'hold',   label: '屏息', dur: 4 },
+        { type: 'exhale', label: '呼气', dur: 4 },
+        { type: 'hold',   label: '屏息', dur: 4 },
+      ],
+    },
+    '478': {
+      bg: ['#2a1f3d', '#43355e'],
+      phases: [
+        { type: 'inhale', label: '吸气', dur: 4 },
+        { type: 'hold',   label: '屏息', dur: 7 },
+        { type: 'exhale', label: '呼气', dur: 8 },
+      ],
+    },
+  };
+
+  const orb = document.getElementById('orb');
+  const phaseText = document.getElementById('phaseText');
+  const countEl = document.getElementById('count');
+  const playBtn = document.getElementById('playBtn');
+  const modesEl = document.getElementById('modes');
+  const soundToggle = document.getElementById('soundToggle');
+
+  let currentMode = 'relax';
+  let running = false;
+  let phaseIndex = 0;
+  let phaseStart = 0;
+  let rafId = null;
+  let soundOn = false;
+  let audioCtx = null;
+
+  const MIN_SCALE = 0.55;  // 呼气时圆的最小比例
+  const MAX_SCALE = 1.35;  // 吸气时圆的最大比例
+
+  // 缓动函数,让胀缩更自然柔和
+  function easeInOut(t) {
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  }
+
+  function applyBg(mode) {
+    const [a, b] = MODES[mode].bg;
+    document.body.style.background =
+      `radial-gradient(circle at 50% 40%, ${b}, ${a} 70%)`;
+  }
+
+  // 用 Web Audio 生成柔和的引导音,不依赖任何音频文件
+  function playTone(type) {
+    if (!soundOn) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    // 吸气音调上行,呼气下行,屏息一个轻点
+    const freq = type === 'inhale' ? 330 : type === 'exhale' ? 220 : 280;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 1);
+  }
+
+  function frame(now) {
+    if (!running) return;
+    const phases = MODES[currentMode].phases;
+    const phase = phases[phaseIndex];
+    const elapsed = (now - phaseStart) / 1000;
+    const t = Math.min(elapsed / phase.dur, 1);
+
+    // 计算当前应有的缩放
+    let scale;
+    if (phase.type === 'inhale') {
+      scale = MIN_SCALE + (MAX_SCALE - MIN_SCALE) * easeInOut(t);
+    } else if (phase.type === 'exhale') {
+      scale = MAX_SCALE - (MAX_SCALE - MIN_SCALE) * easeInOut(t);
+    } else { // hold: 维持上一阶段的终点大小
+      const prev = phases[(phaseIndex - 1 + phases.length) % phases.length];
+      scale = prev.type === 'inhale' ? MAX_SCALE : MIN_SCALE;
+    }
+    orb.style.transform = `scale(${scale})`;
+
+    // 倒计时数字
+    const remain = Math.ceil(phase.dur - elapsed);
+    countEl.textContent = remain > 0 ? remain : '';
+
+    // 进入下一阶段
+    if (t >= 1) {
+      phaseIndex = (phaseIndex + 1) % phases.length;
+      phaseStart = now;
+      const next = phases[phaseIndex];
+      phaseText.textContent = next.label;
+      playTone(next.type);
+    }
+
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    running = true;
+    playBtn.textContent = '❚❚';
+    phaseIndex = 0;
+    const phases = MODES[currentMode].phases;
+    phaseText.textContent = phases[0].label;
+    playTone(phases[0].type);
+    phaseStart = performance.now();
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function pause() {
+    running = false;
+    playBtn.textContent = '▶';
+    cancelAnimationFrame(rafId);
+    phaseText.textContent = '暂停';
+    countEl.textContent = '';
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (running) pause();
+    else {
+      // 用户手势中恢复音频上下文(浏览器策略要求)
+      if (soundOn && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      start();
+    }
+  });
+
+  modesEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.mode-btn');
+    if (!btn) return;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+    applyBg(currentMode);
+    if (running) { pause(); start(); }
+    else { orb.style.transform = `scale(${MIN_SCALE})`; phaseText.textContent = '准备'; }
+  });
+
+  soundToggle.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundToggle.textContent = soundOn ? '🔊 关闭引导音' : '🔇 开启引导音';
+    if (soundOn && !audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  });
+
+  // 空格键 = 开始/暂停
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
+  });
+
+  // 生成背景漂浮光斑
+  (function spawnAmbient() {
+    const container = document.getElementById('ambient');
+    for (let i = 0; i < 6; i++) {
+      const s = document.createElement('span');
+      const size = 120 + Math.random() * 180;
+      s.style.width = s.style.height = size + 'px';
+      s.style.left = Math.random() * 100 + 'vw';
+      s.style.animationDuration = (18 + Math.random() * 16) + 's';
+      s.style.animationDelay = -(Math.random() * 20) + 's';
+      container.appendChild(s);
+    }
+  })();
+
+  // 初始状态
+  orb.style.transform = `scale(${MIN_SCALE})`;
+  orb.style.transition = 'none';
+</script>
+</body>
+</html>

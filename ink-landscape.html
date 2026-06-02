@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>水墨山水</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #e8e0d0; overflow: hidden; cursor: none; }
+  canvas { display: block; }
+  #hint {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    color: #7a6a50; font-family: 'STKaiti', 'KaiTi', serif; font-size: 14px;
+    letter-spacing: 6px; opacity: 1; transition: opacity 3s;
+    pointer-events: none;
+  }
+  #bookBtn {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 48px; height: 48px; border-radius: 50%;
+    background: rgba(237,229,212,0.92); border: 1px solid #b0a080;
+    font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18); z-index: 10;
+    font-family: 'STKaiti','KaiTi',serif; color: #5a4a30;
+  }
+  #bookOverlay {
+    display: none; position: fixed; inset: 0; z-index: 20;
+    background: rgba(60,48,30,0.35); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center;
+  }
+  #bookOverlay.open { display: flex; }
+  #bookPanel {
+    background: #f5edd8; border: 1px solid #c0a870; border-radius: 4px;
+    padding: 32px 40px; min-width: 320px; max-width: 480px; max-height: 70vh;
+    overflow-y: auto; font-family: 'STKaiti','KaiTi',serif;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  #bookPanel h2 { text-align: center; font-size: 20px; color: #3a2e1e; margin-bottom: 20px; letter-spacing: 4px; }
+  #bookPanel .poem-item { padding: 6px 0; border-bottom: 1px solid rgba(160,140,100,0.3); color: #3a2e1e; font-size: 15px; letter-spacing: 2px; }
+  #bookPanel .empty { color: #9a8a6a; text-align: center; font-size: 14px; letter-spacing: 3px; margin-top: 20px; }
+  #collectHint {
+    position: fixed; top: 40%; left: 50%; transform: translateX(-50%);
+    color: #b08030; font-family: 'STKaiti','KaiTi',serif; font-size: 16px;
+    letter-spacing: 4px; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+    text-shadow: 0 0 12px rgba(200,160,40,0.6); z-index: 5;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">按住鼠标，拨云见山·划过诗句可收集</div>
+<button id="bookBtn" title="诗集">📖</button>
+<div id="collectHint">已收录诗句</div>
+<div id="bookOverlay">
+  <div id="bookPanel">
+    <h2>山水诗集</h2>
+    <div id="bookList"></div>
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+let mouse = { x: -999, y: -999, pressed: false };
+let fogParticles = [];
+let mountains = [];
+let trees = [];
+let birds = [];
+let birdTimer = 0;
+let river = null;
+let bamboos = [];
+let reeds = [];
+let poems = [];
+let collectedPoems = [];
+let poemTimer = 0;
+let poemInterval = 180 + Math.floor(Math.random() * 180);
+let bookOpen = false;
+
+const POEMS = [
+  "横看成岭侧成峰，远近高低各不同","飞流直下三千尺，疑是银河落九天",
+  "会当凌绝顶，一览众山小","两岸猿声啼不住，轻舟已过万重山",
+  "山重水复疑无路，柳暗花明又一村","采菊东篱下，悠然见南山",
+  "空山新雨后，天气晚来秋","明月松间照，清泉石上流",
+  "行到水穷处，坐看云起时","泉眼无声惜细流，树阴照水爱晴柔",
+  "绿树村边合，青山郭外斜","春潮带雨晚来急，野渡无人舟自横",
+  "山气日夕佳，飞鸟相与还","渡头余落日，墟里上孤烟",
+  "白云回望合，青霭入看无","江流天地外，山色有无中",
+  "孤帆远影碧空尽，唯见长江天际流","日照香炉生紫烟，遥看瀑布挂前川",
+  "不识庐山真面目，只缘身在此山中","千山鸟飞绝，万径人踪灭",
+  "孤舟蓑笠翁，独钓寒江雪","青山横北郭，白水绕东城",
+  "此地一为别，孤蓬万里征","相看两不厌，只有敬亭山",
+  "众鸟高飞尽，孤云独去闲","峨眉山月半轮秋，影入平羌江水流",
+  "朝辞白帝彩云间，千里江陵一日还","山随平野尽，江入大荒流",
+  "仍怜故乡水，万里送行舟","客路青山外，行舟绿水前",
+  "潮平两岸阔，风正一帆悬","海日生残夜，江春入旧年",
+  "乡书何处达，归雁洛阳边","无边落木萧萧下，不尽长江滚滚来",
+  "万里悲秋常作客，百年多病独登台","星垂平野阔，月涌大江流",
+  "名岂文章著，官应老病休","飘飘何所似，天地一沙鸥",
+  "烽火连三月，家书抵万金","白头搔更短，浑欲不胜簪",
+  "造化钟神秀，阴阳割昏晓","荡胸生曾云，决眦入归鸟",
+  "水光潋滟晴方好，山色空蒙雨亦奇","欲把西湖比西子，淡妆浓抹总相宜",
+  "接天莲叶无穷碧，映日荷花别样红","毕竟西湖六月中，风光不与四时同"
+];
+
+// --- Perlin noise ---
+const perm = new Uint8Array(512);
+(function() {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+})();
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+function grad(h, x, y) {
+  const v = h & 3, u = v < 2 ? x : y, w = v < 2 ? y : x;
+  return ((h & 1) ? -u : u) + ((h & 2) ? -w : w);
+}
+function noise(x, y) {
+  const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+  x -= Math.floor(x); y -= Math.floor(y);
+  const u = fade(x), v = fade(y);
+  const a = perm[X] + Y, b = perm[X + 1] + Y;
+  return lerp(
+    lerp(grad(perm[a], x, y), grad(perm[b], x - 1, y), u),
+    lerp(grad(perm[a + 1], x, y - 1), grad(perm[b + 1], x - 1, y - 1), u), v
+  );
+}
+
+// --- Mountain generation ---
+function generateMountainPts(baseY, amplitude, roughness, seed) {
+  const pts = [];
+  const steps = Math.ceil(W / 3) + 2;
+  for (let i = 0; i <= steps; i++) {
+    const x = (i / steps) * W;
+    let y = baseY;
+    y -= Math.abs(noise(i * roughness + seed, seed * 0.5)) * amplitude;
+    y -= Math.abs(noise(i * roughness * 0.5 + seed + 100, seed)) * amplitude * 0.4;
+    pts.push({ x, y });
+  }
+  return pts;
+}
+
+function drawMountainInk(pts, layerIdx, totalLayers) {
+  // Build path
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.lineTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2;
+    const my = (pts[i].y + pts[i + 1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  }
+  ctx.lineTo(W, pts[pts.length - 1].y);
+  ctx.lineTo(W, H);
+  ctx.closePath();
+
+  // Ink wash fill: darker at ridge, lighter toward base (国画墨色)
+  const t = layerIdx / (totalLayers - 1); // 0=far, 1=near
+  const ridgeY = Math.min(...pts.map(p => p.y));
+  const grd = ctx.createLinearGradient(0, ridgeY, 0, H);
+
+  if (t < 0.4) {
+    // distant mountains: pale ink, blue-grey
+    const lightness = Math.round(lerp(200, 170, t / 0.4));
+    grd.addColorStop(0, `rgba(${lightness - 10},${lightness},${lightness + 8},0.9)`);
+    grd.addColorStop(0.5, `rgba(${lightness + 10},${lightness + 12},${lightness + 15},0.6)`);
+    grd.addColorStop(1, `rgba(220,215,205,0.3)`);
+  } else {
+    // near mountains: rich ink, warm dark
+    const dark = Math.round(lerp(80, 28, (t - 0.4) / 0.6));
+    grd.addColorStop(0, `rgba(${dark},${dark - 4},${dark - 8},0.95)`);
+    grd.addColorStop(0.4, `rgba(${dark + 30},${dark + 26},${dark + 20},0.75)`);
+    grd.addColorStop(1, `rgba(180,172,158,0.2)`);
+  }
+  ctx.fillStyle = grd;
+  ctx.fill();
+
+  // Ink outline stroke on ridge (毛笔边缘感)
+  ctx.save();
+  ctx.clip();
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2;
+    const my = (pts[i].y + pts[i + 1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  }
+  const strokeAlpha = lerp(0.08, 0.35, t);
+  const strokeDark = Math.round(lerp(120, 20, t));
+  ctx.strokeStyle = `rgba(${strokeDark},${strokeDark - 5},${strokeDark - 10},${strokeAlpha})`;
+  ctx.lineWidth = lerp(0.5, 1.5, t);
+  ctx.stroke();
+  ctx.restore();
+
+  // Cun strokes (皴法) — short ink lines on near mountains only
+  if (t > 0.5) {
+    drawCun(pts, t);
+  }
+}
+
+// 皴法: short diagonal strokes suggesting rock texture
+function drawCun(pts, t) {
+  ctx.save();
+  // clip to mountain shape
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.lineTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2;
+    const my = (pts[i].y + pts[i + 1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  }
+  ctx.lineTo(W, pts[pts.length - 1].y);
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.clip();
+
+  const density = Math.floor(lerp(30, 80, (t - 0.5) / 0.5));
+  ctx.strokeStyle = `rgba(30,25,18,${lerp(0.06, 0.14, (t - 0.5) / 0.5)})`;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < density; i++) {
+    const px = Math.random() * W;
+    // find approximate y on ridgeline
+    const ridgeY = pts[Math.floor((px / W) * (pts.length - 1))].y;
+    const py = ridgeY + Math.random() * (H - ridgeY) * 0.6;
+    const len = 4 + Math.random() * 10;
+    const angle = -0.6 + Math.random() * 0.5; // diagonal
+    ctx.lineWidth = 0.4 + Math.random() * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + Math.cos(angle) * len, py + Math.sin(angle) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// --- Pre-build tree structure (fix flicker) ---
+function buildTreeBranches(x, y, size) {
+  const segments = [];
+  function branch(bx, by, angle, len, depth, width) {
+    if (depth === 0 || len < 1.5) return;
+    const ex = bx + Math.cos(angle) * len;
+    const ey = by + Math.sin(angle) * len;
+    segments.push({ x1: bx, y1: by, x2: ex, y2: ey, w: width });
+    const spread = 0.35 + Math.random() * 0.15;
+    branch(ex, ey, angle - spread + (Math.random() - 0.5) * 0.2, len * 0.68, depth - 1, width * 0.62);
+    branch(ex, ey, angle + spread + (Math.random() - 0.5) * 0.2, len * 0.68, depth - 1, width * 0.62);
+  }
+  branch(x, y, -Math.PI / 2, size, 5, size * 0.09);
+  return segments;
+}
+
+function drawTreeFromSegments(segments, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#1a1510';
+  ctx.lineCap = 'round';
+  for (const s of segments) {
+    ctx.lineWidth = s.w;
+    ctx.beginPath();
+    ctx.moveTo(s.x1, s.y1);
+    ctx.lineTo(s.x2, s.y2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// --- Fog ---
+function createFogParticle(random) {
+  return {
+    x: random ? Math.random() * W : (Math.random() < 0.5 ? -80 : W + 80),
+    y: random ? Math.random() * H * 0.85 : Math.random() * H * 0.85,
+    r: 80 + Math.random() * 150,
+    targetAlpha: 0.35 + Math.random() * 0.45,
+    vx: (Math.random() - 0.5) * 0.12,
+    vy: (Math.random() - 0.5) * 0.06,
+    dispersed: 0,
+    alpha: 0,
+  };
+}
+
+function updateFog() {
+  const dispR = 120;
+  const dispStrength = mouse.pressed ? 0.045 : 0;
+
+  for (const p of fogParticles) {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < -p.r * 2) p.x = W + p.r;
+    if (p.x > W + p.r * 2) p.x = -p.r;
+    if (p.y < -p.r * 2) p.y = H + p.r;
+    if (p.y > H + p.r * 2) p.y = -p.r;
+
+    const dx = p.x - mouse.x, dy = p.y - mouse.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (mouse.pressed && dist < dispR + p.r) {
+      p.dispersed = Math.min(p.dispersed + dispStrength * (1 - dist / (dispR + p.r)), 1);
+    } else {
+      p.dispersed = Math.max(p.dispersed - 0.006, 0);
+    }
+
+    const target = p.targetAlpha * (1 - p.dispersed);
+    p.alpha += (target - p.alpha) * 0.05;
+  }
+}
+
+function drawFog() {
+  for (const p of fogParticles) {
+    if (p.alpha < 0.005) continue;
+    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+    grd.addColorStop(0, `rgba(240,235,222,${p.alpha})`);
+    grd.addColorStop(0.5, `rgba(238,232,218,${p.alpha * 0.6})`);
+    grd.addColorStop(1, 'rgba(238,232,218,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// --- Birds ---
+function spawnBird() {
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  birds.push({
+    x: dir > 0 ? -30 : W + 30,
+    y: H * (0.12 + Math.random() * 0.3),
+    dir, speed: 0.7 + Math.random() * 0.5,
+    wingPhase: Math.random() * Math.PI * 2,
+    alpha: 0,
+  });
+}
+
+function drawBird(b) {
+  ctx.save();
+  ctx.globalAlpha = b.alpha * 0.65;
+  ctx.strokeStyle = '#1a1510';
+  ctx.lineWidth = 1.0;
+  ctx.lineCap = 'round';
+  const wing = Math.sin(b.wingPhase) * 4;
+  ctx.beginPath();
+  ctx.moveTo(b.x - 7 * b.dir, b.y + wing);
+  ctx.quadraticCurveTo(b.x, b.y - 2, b.x + 7 * b.dir, b.y + wing);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// --- River ---
+function generateRiver() {
+  const pts = [];
+  const steps = 40;
+  const baseY = H * 0.79;
+  for (let i = 0; i <= steps; i++) {
+    const x = (i / steps) * W;
+    const y = baseY + noise(i * 0.18 + 7, 3) * H * 0.025;
+    pts.push({ x, y });
+  }
+  river = { pts, w: H * 0.032 };
+}
+
+function drawRiver() {
+  if (!river) return;
+  const { pts, w } = river;
+  ctx.save();
+  // main body
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y - w);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y - w);
+  for (let i = pts.length - 1; i >= 0; i--) ctx.lineTo(pts[i].x, pts[i].y + w);
+  ctx.closePath();
+  const grd = ctx.createLinearGradient(0, pts[0].y - w, 0, pts[0].y + w);
+  grd.addColorStop(0, 'rgba(160,175,190,0.55)');
+  grd.addColorStop(0.5, 'rgba(180,192,205,0.45)');
+  grd.addColorStop(1, 'rgba(160,175,190,0.3)');
+  ctx.fillStyle = grd;
+  ctx.fill();
+  // ripples
+  ctx.strokeStyle = 'rgba(120,140,160,0.25)';
+  ctx.lineWidth = 0.7;
+  for (const rp of river.ripples) {
+    ctx.beginPath();
+    ctx.ellipse(rp.x, rp.y, rp.rx, rp.ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// --- Bamboo ---
+function buildBamboo(x, y) {
+  const segs = [];
+  const count = 8 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const bx = x + (Math.random() - 0.5) * 28;
+    const h = 28 + Math.random() * 22;
+    const by = y - Math.random() * 10;
+    // stalk segments
+    const joints = 3 + Math.floor(Math.random() * 2);
+    for (let j = 0; j <= joints; j++) {
+      const sy = by - (j / joints) * h;
+      const ey = by - ((j + 1) / joints) * h;
+      segs.push({ type: 'stalk', x1: bx, y1: sy, x2: bx, y2: ey });
+      if (j < joints) segs.push({ type: 'joint', x: bx, y: sy });
+    }
+    // leaves
+    for (let l = 0; l < 3; l++) {
+      const lx = bx, ly = by - h * (0.4 + l * 0.2);
+      const angle = (Math.random() - 0.5) * 1.2 + (Math.random() < 0.5 ? 0.4 : -0.4);
+      segs.push({ type: 'leaf', x: lx, y: ly, angle, len: 10 + Math.random() * 8 });
+    }
+  }
+  return segs;
+}
+
+function drawBamboos() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(40,55,30,0.75)';
+  ctx.lineCap = 'round';
+  for (const grove of bamboos) {
+    for (const s of grove) {
+      if (s.type === 'stalk') {
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+      } else if (s.type === 'joint') {
+        ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.moveTo(s.x - 2, s.y); ctx.lineTo(s.x + 2, s.y); ctx.stroke();
+      } else {
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + Math.cos(s.angle) * s.len, s.y + Math.sin(s.angle) * s.len);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+// --- Reeds ---
+function buildReed(x, y) {
+  const h = 22 + Math.random() * 14;
+  const lean = (Math.random() - 0.5) * 0.3;
+  return { x, y, h, lean, headW: 3 + Math.random() * 2, headH: 7 + Math.random() * 4 };
+}
+
+function drawReeds() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(80,65,40,0.7)';
+  ctx.fillStyle = 'rgba(90,70,45,0.6)';
+  ctx.lineCap = 'round';
+  for (const r of reeds) {
+    const tx = r.x + Math.sin(r.lean) * r.h, ty = r.y - r.h;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(tx, ty); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(tx, ty - r.headH / 2, r.headW, r.headH, r.lean, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// --- Poems ---
+function spawnPoem() {
+  if (poems.length > 0) return;
+  const text = POEMS[Math.floor(Math.random() * POEMS.length)];
+  const vertical = Math.random() < 0.5;
+  const fontSize = 18;
+  const charCount = text.replace('，', '').replace('。', '').length;
+  const glyphs = [];
+  const chars = [...text];
+  // position: avoid river band (H*0.77~0.83), keep in H*0.15~0.72
+  let px, py;
+  do {
+    px = W * (0.15 + Math.random() * 0.7);
+    py = H * (0.15 + Math.random() * 0.57);
+  } while (py > H * 0.72);
+
+  chars.forEach((ch, i) => {
+    const gx = vertical ? px : px + i * (fontSize + 2);
+    const gy = vertical ? py + i * (fontSize + 2) : py;
+    glyphs.push({ ch, x: gx, y: gy, swept: false });
+  });
+  poems.push({ text, glyphs, alpha: 0, fadeOut: false, collected: false, life: 0, lifetime: (10 + Math.random() * 6) * 60 });
+}
+
+function updatePoems() {
+  poemTimer++;
+  if (poemTimer >= poemInterval && poems.length === 0) {
+    spawnPoem();
+    poemTimer = 0;
+    poemInterval = 180 + Math.floor(Math.random() * 180);
+  }
+  for (let i = poems.length - 1; i >= 0; i--) {
+    const p = poems[i];
+    p.life++;
+    if (!p.fadeOut) p.alpha = Math.min(p.alpha + 0.02, 0.75);
+    if (p.fadeOut) {
+      p.alpha -= 0.025;
+      if (p.alpha <= 0) { poems.splice(i, 1); continue; }
+    } else if (p.life > p.lifetime) {
+      p.fadeOut = true;
+    }
+    // sweep detection
+    if (mouse.pressed && !p.collected) {
+      for (const g of p.glyphs) {
+        if (g.swept) continue;
+        const dx = mouse.x - g.x, dy = mouse.y - g.y;
+        if (dx * dx + dy * dy < 22 * 22) g.swept = true;
+      }
+      if (p.glyphs.every(g => g.swept)) {
+        p.collected = true;
+        p.fadeOut = true;
+        if (!collectedPoems.includes(p.text)) collectedPoems.push(p.text);
+      }
+    }
+  }
+}
+
+function drawPoems() {
+  ctx.save();
+  ctx.font = `${18}px 'STKaiti','KaiTi',serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  for (const p of poems) {
+    for (const g of p.glyphs) {
+      ctx.globalAlpha = p.alpha * (g.swept ? 0.25 : 1);
+      ctx.fillStyle = g.swept ? 'rgba(180,140,40,0.8)' : 'rgba(30,20,10,0.85)';
+      ctx.fillText(g.ch, g.x, g.y);
+    }
+  }
+  ctx.restore();
+}
+
+// --- Background: xuan paper ---
+function drawPaper() {
+  // Warm xuan paper base
+  ctx.fillStyle = '#ede5d4';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle paper grain via noise-like radial blobs
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  for (let i = 0; i < 5; i++) {
+    const gx = W * (0.1 + i * 0.2), gy = H * (0.3 + (i % 2) * 0.3);
+    const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, W * 0.35);
+    gr.addColorStop(0, '#7a6040');
+    gr.addColorStop(1, 'transparent');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
+
+  // Ink wash vignette at edges
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  const vgrd = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.8);
+  vgrd.addColorStop(0, 'transparent');
+  vgrd.addColorStop(1, '#3a2e1e');
+  ctx.fillStyle = vgrd;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// --- Init ---
+function init() {
+  mountains = []; trees = []; fogParticles = []; bamboos = []; reeds = []; poems = [];
+
+  const layers = [
+    { baseY: H * 0.52, amp: H * 0.30, rough: 0.016, seed: Math.random() * 100 },
+    { baseY: H * 0.62, amp: H * 0.24, rough: 0.022, seed: Math.random() * 100 },
+    { baseY: H * 0.70, amp: H * 0.20, rough: 0.032, seed: Math.random() * 100 },
+    { baseY: H * 0.78, amp: H * 0.14, rough: 0.048, seed: Math.random() * 100 },
+  ];
+  for (const l of layers) {
+    mountains.push({ pts: generateMountainPts(l.baseY, l.amp, l.rough, l.seed) });
+  }
+
+  // Pre-build trees on near mountains (no random at draw time)
+  for (let mi = 2; mi < 4; mi++) {
+    const pts = mountains[mi].pts;
+    const count = 7 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      const idx = Math.floor(Math.random() * (pts.length - 2)) + 1;
+      const p = pts[idx];
+      const size = (mi === 3 ? 20 : 13) + Math.random() * 8;
+      const segments = buildTreeBranches(p.x, p.y, size);
+      trees.push({ segments, layer: mi });
+    }
+  }
+
+  const count = Math.floor(W * H / 2800);
+  for (let i = 0; i < count; i++) {
+    const fp = createFogParticle(true);
+    fp.alpha = fp.targetAlpha;
+    fogParticles.push(fp);
+  }
+
+  // River
+  generateRiver();
+  // ripples along river
+  river.ripples = [];
+  for (let i = 0; i < 18; i++) {
+    const t = Math.random();
+    const idx = Math.floor(t * (river.pts.length - 1));
+    river.ripples.push({ x: river.pts[idx].x + (Math.random()-0.5)*20, y: river.pts[idx].y, rx: 6+Math.random()*10, ry: 1.5+Math.random()*1.5 });
+  }
+
+  // Bamboo groves on near mountain foothills
+  const nearPts = mountains[3].pts;
+  for (let i = 0; i < 5; i++) {
+    const idx = Math.floor((0.1 + i * 0.18) * nearPts.length);
+    const p = nearPts[Math.min(idx, nearPts.length-1)];
+    bamboos.push(buildBamboo(p.x, p.y));
+  }
+
+  // Reeds along river banks
+  for (let i = 0; i < 14; i++) {
+    const t = i / 14;
+    const idx = Math.floor(t * (river.pts.length - 1));
+    const rp = river.pts[idx];
+    const side = (i % 2 === 0 ? -1 : 1) * (river.w + 2 + Math.random() * 8);
+    reeds.push(buildReed(rp.x + (Math.random()-0.5)*20, rp.y + side));
+  }
+}
+
+// --- Main loop ---
+let birdSpawnInterval = 60 * (25 + Math.random() * 20);
+function loop() {
+  ctx.clearRect(0, 0, W, H);
+  drawPaper();
+  drawRiver();
+
+  const n = mountains.length;
+  for (let i = 0; i < n; i++) drawMountainInk(mountains[i].pts, i, n);
+
+  for (const t of trees) {
+    const alpha = t.layer === 3 ? 0.82 : 0.50;
+    drawTreeFromSegments(t.segments, alpha);
+  }
+  drawBamboos();
+  drawReeds();
+  drawPoems();
+  updatePoems();
+
+  updateFog();
+  drawFog();
+
+  // Birds
+  birdTimer++;
+  if (birdTimer >= birdSpawnInterval) {
+    spawnBird();
+    birdTimer = 0;
+    birdSpawnInterval = 60 * (25 + Math.random() * 20);
+  }
+  for (let i = birds.length - 1; i >= 0; i--) {
+    const b = birds[i];
+    b.x += b.speed * b.dir;
+    b.wingPhase += 0.07;
+    b.alpha = Math.min(b.alpha + 0.015, 1);
+    if (b.x < -60 || b.x > W + 60) { birds.splice(i, 1); continue; }
+    drawBird(b);
+  }
+
+  // Cursor ring (only when pressed)
+  if (mouse.pressed && mouse.x > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = '#5a4a30';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, 18, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.1;
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, 40, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// --- Book UI ---
+const bookBtn = document.getElementById('bookBtn');
+const bookOverlay = document.getElementById('bookOverlay');
+const bookList = document.getElementById('bookList');
+const collectHint = document.getElementById('collectHint');
+
+function openBook() {
+  bookList.innerHTML = collectedPoems.length === 0
+    ? '<div class="empty">尚无收集，拨云方见诗</div>'
+    : collectedPoems.map((p, i) => `<div class="poem-item">${i+1}. ${p}</div>`).join('');
+  bookOverlay.classList.add('open');
+}
+bookBtn.addEventListener('click', e => { e.stopPropagation(); openBook(); });
+bookOverlay.addEventListener('click', () => bookOverlay.classList.remove('open'));
+document.getElementById('bookPanel').addEventListener('click', e => e.stopPropagation());
+
+// show collect hint when poem collected
+let collectHintTimer = 0;
+const _origUpdatePoems = updatePoems;
+updatePoems = function() {
+  const prevLen = collectedPoems.length;
+  _origUpdatePoems();
+  if (collectedPoems.length > prevLen) {
+    collectHint.style.opacity = '1';
+    collectHintTimer = 120;
+  }
+  if (collectHintTimer > 0) {
+    collectHintTimer--;
+    if (collectHintTimer === 0) collectHint.style.opacity = '0';
+  }
+};
+
+// --- Events ---
+window.addEventListener('resize', () => {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  init();
+});
+
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('mousedown', () => { mouse.pressed = true; });
+window.addEventListener('mouseup',   () => { mouse.pressed = false; });
+window.addEventListener('mouseleave',() => { mouse.pressed = false; mouse.x = -999; });
+
+window.addEventListener('touchstart', e => {
+  mouse.pressed = true;
+  mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+}, { passive: true });
+window.addEventListener('touchmove', e => {
+  e.preventDefault();
+  mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+}, { passive: false });
+window.addEventListener('touchend', () => { mouse.pressed = false; });
+
+setTimeout(() => { document.getElementById('hint').style.opacity = '0'; }, 5000);
+
+W = canvas.width = window.innerWidth;
+H = canvas.height = window.innerHeight;
+init();
+loop();
+</script>
+</body>
+</html>

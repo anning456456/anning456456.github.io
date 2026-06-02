@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Low Poly Cat</title>
+<style>
+  body { margin: 0; background: #1a1a2e; overflow: hidden; }
+  #info { position: absolute; top: 16px; width: 100%; text-align: center; color: #aaa; font-family: monospace; font-size: 14px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="info">Low Poly 小猫咪 🐱 拖拽旋转 | 滚轮缩放</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 3, 8);
+camera.lookAt(0, 1, 0);
+const renderer = new THREE.WebGLRenderer({antialias: true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+// Lights
+const amb = new THREE.AmbientLight(0x404060, 0.6);
+scene.add(amb);
+const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+dir.position.set(5, 8, 5);
+dir.castShadow = true;
+scene.add(dir);
+const rim = new THREE.DirectionalLight(0x6688cc, 0.3);
+rim.position.set(-3, 2, -5);
+scene.add(rim);
+
+// Materials
+const bodyMat = new THREE.MeshStandardMaterial({color: 0xf4a460, flatShading: true});
+const whiteMat = new THREE.MeshStandardMaterial({color: 0xfff5e6, flatShading: true});
+const darkMat = new THREE.MeshStandardMaterial({color: 0x222222, flatShading: true});
+const pinkMat = new THREE.MeshStandardMaterial({color: 0xff9999, flatShading: true});
+const noseMat = new THREE.MeshStandardMaterial({color: 0xff6b81, flatShading: true});
+
+const cat = new THREE.Group();
+
+// Body - elongated sphere
+const bodyGeo = new THREE.SphereGeometry(1, 6, 5);
+bodyGeo.scale(1, 0.85, 1.3);
+const body = new THREE.Mesh(bodyGeo, bodyMat);
+body.position.set(0, 1.2, 0);
+body.castShadow = true;
+cat.add(body);
+
+// Chest / belly
+const chestGeo = new THREE.SphereGeometry(0.65, 5, 4);
+chestGeo.scale(1, 1, 0.9);
+const chest = new THREE.Mesh(chestGeo, whiteMat);
+chest.position.set(0, 1.0, 0.55);
+cat.add(chest);
+
+// Head
+const headGeo = new THREE.SphereGeometry(0.8, 6, 5);
+headGeo.scale(1.1, 1, 1);
+const head = new THREE.Mesh(headGeo, bodyMat);
+head.position.set(0, 2.3, 0.5);
+head.castShadow = true;
+cat.add(head);
+
+// Ears
+function makeEar(x) {
+  const geo = new THREE.ConeGeometry(0.3, 0.55, 4);
+  const ear = new THREE.Mesh(geo, bodyMat);
+  ear.position.set(x * 0.45, 2.95, 0.4);
+  ear.rotation.z = x * -0.25;
+  ear.rotation.x = -0.15;
+  cat.add(ear);
+  // Inner ear
+  const innerGeo = new THREE.ConeGeometry(0.16, 0.35, 4);
+  const inner = new THREE.Mesh(innerGeo, pinkMat);
+  inner.position.set(x * 0.45, 2.92, 0.48);
+  inner.rotation.z = x * -0.25;
+  inner.rotation.x = -0.15;
+  cat.add(inner);
+}
+makeEar(-1);
+makeEar(1);
+
+// Eyes
+function makeEye(x) {
+  const whiteGeo = new THREE.SphereGeometry(0.16, 5, 4);
+  whiteGeo.scale(1, 1.1, 0.6);
+  const white = new THREE.Mesh(whiteGeo, whiteMat);
+  white.position.set(x * 0.32, 2.38, 1.15);
+  cat.add(white);
+  const pupilGeo = new THREE.SphereGeometry(0.09, 4, 4);
+  pupilGeo.scale(1, 1.3, 0.6);
+  const pupil = new THREE.Mesh(pupilGeo, darkMat);
+  pupil.position.set(x * 0.3, 2.37, 1.22);
+  cat.add(pupil);
+}
+makeEye(-1);
+makeEye(1);
+
+// Nose
+const noseGeo = new THREE.SphereGeometry(0.07, 4, 3);
+noseGeo.scale(1.3, 1, 0.8);
+const nose = new THREE.Mesh(noseGeo, noseMat);
+nose.position.set(0, 2.2, 1.25);
+cat.add(nose);
+
+// Mouth - two small lines using thin boxes
+function makeMouthLine(x) {
+  const geo = new THREE.BoxGeometry(0.12, 0.02, 0.02);
+  const m = new THREE.Mesh(geo, darkMat);
+  m.position.set(x * 0.07, 2.14, 1.24);
+  m.rotation.z = x * 0.5;
+  cat.add(m);
+}
+makeMouthLine(-1);
+makeMouthLine(1);
+
+// Whiskers
+function makeWhisker(x, yOff) {
+  const geo = new THREE.CylinderGeometry(0.008, 0.005, 0.6, 3);
+  geo.rotateZ(Math.PI / 2);
+  const w = new THREE.Mesh(geo, darkMat);
+  w.position.set(x * 0.55, 2.2 + yOff, 1.15);
+  w.rotation.y = x * 0.2;
+  w.rotation.x = yOff * 2;
+  cat.add(w);
+}
+makeWhisker(-1, 0.05); makeWhisker(-1, -0.05);
+makeWhisker(1, 0.05); makeWhisker(1, -0.05);
+
+// Front legs
+function makeLeg(x, z, isFront) {
+  const geo = new THREE.CylinderGeometry(0.18, 0.2, 0.8, 5);
+  const leg = new THREE.Mesh(geo, bodyMat);
+  leg.position.set(x * 0.45, 0.4, z);
+  leg.castShadow = true;
+  cat.add(leg);
+  // Paw
+  const pawGeo = new THREE.SphereGeometry(0.2, 4, 3);
+  pawGeo.scale(1, 0.5, 1.2);
+  const paw = new THREE.Mesh(pawGeo, whiteMat);
+  paw.position.set(x * 0.45, 0.05, z + 0.05);
+  cat.add(paw);
+}
+makeLeg(-1, 0.6, true);
+makeLeg(1, 0.6, true);
+makeLeg(-1, -0.5, false);
+makeLeg(1, -0.5, false);
+
+// Tail
+const tailCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 1.2, -1.2),
+  new THREE.Vector3(0, 1.6, -1.8),
+  new THREE.Vector3(0.3, 2.2, -1.9),
+  new THREE.Vector3(0.4, 2.6, -1.6),
+]);
+const tailGeo = new THREE.TubeGeometry(tailCurve, 8, 0.1, 5, false);
+const tail = new THREE.Mesh(tailGeo, bodyMat);
+tail.castShadow = true;
+cat.add(tail);
+
+// Tail tip
+const tipGeo = new THREE.SphereGeometry(0.14, 4, 3);
+const tip = new THREE.Mesh(tipGeo, whiteMat);
+tip.position.set(0.4, 2.6, -1.6);
+cat.add(tip);
+
+scene.add(cat);
+
+// Ground
+const groundGeo = new THREE.CircleGeometry(5, 8);
+const groundMat = new THREE.MeshStandardMaterial({color: 0x2a2a4a, flatShading: true});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Orbit controls (manual)
+let isDragging = false, prevX, prevY, rotY = 0, rotX = 0.1;
+renderer.domElement.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+addEventListener('mouseup', () => isDragging = false);
+addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  rotY += (e.clientX - prevX) * 0.008;
+  rotX += (e.clientY - prevY) * 0.008;
+  rotX = Math.max(-1, Math.min(1, rotX));
+  prevX = e.clientX; prevY = e.clientY;
+});
+let camDist = 8;
+addEventListener('wheel', e => { camDist = Math.max(3, Math.min(15, camDist + e.deltaY * 0.01)); });
+
+// Animation
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.02;
+
+  // Gentle idle animation
+  cat.children.forEach(c => {
+    if (c === tail) c.rotation.y = Math.sin(t * 2) * 0.1;
+  });
+  // Head bob
+  head.rotation.z = Math.sin(t * 1.5) * 0.05;
+  head.position.y = 2.3 + Math.sin(t * 2) * 0.03;
+
+  // Tail sway
+  tail.rotation.y = Math.sin(t * 2.5) * 0.15;
+
+  // Camera orbit
+  camera.position.x = Math.sin(rotY) * camDist;
+  camera.position.z = Math.cos(rotY) * camDist;
+  camera.position.y = 3 + rotX * 3;
+  camera.lookAt(0, 1.2, 0);
+
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

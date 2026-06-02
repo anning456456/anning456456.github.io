@@ -1,81 +1,251 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>翎的个人网页</title>
-    <style>
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f0f0;
-            color: #333;
-        }
-        header {
-            background: url('https://via.placeholder.com/1500x500') no-repeat center center/cover;
-            color: white;
-            padding: 80px 0;
-            text-align: center;
-        }
-        header h1 {
-            margin: 0;
-            font-size: 3em;
-        }
-        .container {
-            width: 90%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .content {
-            background-color: white;
-            padding: 30px;
-            margin: -50px 0 20px 0;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-        }
-        .content h2 {
-            color: #333;
-            font-size: 2em;
-            margin-bottom: 20px;
-        }
-        .content p {
-            line-height: 1.6;
-            font-size: 1.1em;
-        }
-        footer {
-            text-align: center;
-            padding: 20px 0;
-            background-color: #333;
-            color: white;
-        }
-        @media (max-width: 768px) {
-            header h1 {
-                font-size: 2em;
-            }
-            .content {
-                padding: 20px;
-            }
-            .content h2 {
-                font-size: 1.5em;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小工具集 · 解压放松</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0f1626;
+    --card: rgba(255, 255, 255, 0.05);
+    --card-hover: rgba(255, 255, 255, 0.09);
+    --border: rgba(255, 255, 255, 0.1);
+    --text: rgba(255, 255, 255, 0.92);
+    --text-dim: rgba(255, 255, 255, 0.5);
+    --accent: #7fd8c4;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(90, 159, 212, 0.15), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(127, 216, 196, 0.12), transparent 45%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---------- 首页 ---------- */
+  .home {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 64px 24px 80px;
+  }
+  .header { text-align: center; margin-bottom: 56px; }
+  .header h1 {
+    font-size: 34px;
+    font-weight: 300;
+    letter-spacing: 6px;
+  }
+  .header p {
+    margin-top: 14px;
+    color: var(--text-dim);
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    margin: 36px 4px 16px;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 26px 22px;
+    cursor: pointer;
+    transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 150px;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    background: var(--card-hover);
+    border-color: rgba(127, 216, 196, 0.4);
+  }
+  .card .emoji { font-size: 36px; line-height: 1; }
+  .card h3 { font-size: 17px; font-weight: 500; }
+  .card p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  .card .tag {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(127, 216, 196, 0.12);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+
+  /* ---------- 工具查看器(iframe 全屏) ---------- */
+  .viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+  }
+  .viewer.open { display: flex; }
+  .viewer-bar {
+    height: 52px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    background: rgba(15, 22, 38, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .back-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .back-btn:hover { background: rgba(255, 255, 255, 0.16); }
+  .viewer-title { font-size: 14px; color: var(--text-dim); letter-spacing: 1px; }
+  .viewer iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: #000;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 56px;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 480px) {
+    .home { padding: 40px 16px 60px; }
+    .header h1 { font-size: 26px; letter-spacing: 3px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .card { padding: 20px 16px; min-height: 130px; }
+  }
+</style>
 </head>
 <body>
-    <header>
-        <h1>翎</h1>
-        <p>XR工程师 | Unity工程师</p>
-    </header>
-    <div class="container">
-        <div class="content">
-            <h2>个人简介</h2>
-            <p>您好，我是翎，一名专业的XR工程师和Unity工程师。我专注于虚拟现实和增强现实的开发工作，致力于创造沉浸式的用户体验。我热衷于探索新技术并将其应用于实际项目中，目标是通过创新的技术解决方案为用户带来全新的体验。</p>
-        </div>
+
+  <div class="home" id="home">
+    <div class="header">
+      <h1>静 · 玩</h1>
+      <p>一组帮你放松、解压、发呆的小工具</p>
     </div>
-    <footer>
-        &copy; 2024 翎
-    </footer>
+
+    <div class="section-title">呼吸 · 放松</div>
+    <div class="grid" id="grid-relax"></div>
+
+    <div class="section-title">解压 · 宣泄</div>
+    <div class="grid" id="grid-stress"></div>
+
+    <div class="section-title">视觉 · 发呆</div>
+    <div class="grid" id="grid-visual"></div>
+
+    <div class="section-title">小游戏</div>
+    <div class="grid" id="grid-game"></div>
+
+    <div class="footer">点击卡片进入 · 全部离线可用</div>
+  </div>
+
+  <div class="viewer" id="viewer">
+    <div class="viewer-bar">
+      <button class="back-btn" id="backBtn">← 返回</button>
+      <span class="viewer-title" id="viewerTitle"></span>
+    </div>
+    <iframe id="frame" title="工具" allow="autoplay; fullscreen"></iframe>
+  </div>
+
+<script>
+  // 工具清单:在这里加一行就能新增工具
+  const TOOLS = [
+    { file: 'breathe.html',       title: '静呼吸',     desc: '跟随节奏呼吸,快速平复焦虑', emoji: '🫧', cat: 'relax',  tag: '推荐' },
+    { file: 'relax.html',         title: '雅趣解压',   desc: '中国风互动,慢下来的小确幸', emoji: '🎋', cat: 'relax' },
+    { file: 'stress-relief.html', title: '砸玻璃射击', desc: '多场景靶向射击,痛快宣泄',   emoji: '🎯', cat: 'stress', tag: '解压' },
+    { file: 'autumn-tree.html',   title: '秋天的树',   desc: '看落叶飘下,安静发呆',       emoji: '🍂', cat: 'visual' },
+    { file: 'ink-landscape.html', title: '水墨山水',   desc: '流动的水墨,东方美学',       emoji: '⛰️', cat: 'visual' },
+    { file: 'cat.html',           title: '低面猫',     desc: 'Low Poly 风格的小猫',       emoji: '🐱', cat: 'visual' },
+    { file: 'snake.html',         title: '贪食蛇',     desc: '经典小游戏,转移注意力',     emoji: '🐍', cat: 'game' },
+  ];
+
+  const grids = {
+    relax: document.getElementById('grid-relax'),
+    stress: document.getElementById('grid-stress'),
+    visual: document.getElementById('grid-visual'),
+    game: document.getElementById('grid-game'),
+  };
+
+  TOOLS.forEach(t => {
+    const card = document.createElement('button');
+    card.className = 'card';
+    card.innerHTML = `
+      ${t.tag ? `<span class="tag">${t.tag}</span>` : ''}
+      <span class="emoji">${t.emoji}</span>
+      <h3>${t.title}</h3>
+      <p>${t.desc}</p>`;
+    card.addEventListener('click', () => openTool(t));
+    grids[t.cat].appendChild(card);
+  });
+
+  const viewer = document.getElementById('viewer');
+  const frame = document.getElementById('frame');
+  const viewerTitle = document.getElementById('viewerTitle');
+  const home = document.getElementById('home');
+
+  function openTool(t) {
+    frame.src = t.file;
+    viewerTitle.textContent = t.title;
+    viewer.classList.add('open');
+    location.hash = encodeURIComponent(t.file);
+  }
+
+  function closeTool() {
+    viewer.classList.remove('open');
+    frame.src = 'about:blank'; // 停掉工具里的动画/声音,释放资源
+    if (location.hash) history.pushState('', '', location.pathname);
+  }
+
+  document.getElementById('backBtn').addEventListener('click', closeTool);
+
+  // 浏览器/手机的「后退」也能退出工具,符合直觉
+  window.addEventListener('popstate', () => {
+    if (!location.hash) closeTool();
+  });
+
+  // 支持直接用 #文件名 的链接进入某个工具
+  window.addEventListener('load', () => {
+    const hash = decodeURIComponent(location.hash.slice(1));
+    const t = TOOLS.find(x => x.file === hash);
+    if (t) openTool(t);
+  });
+</script>
 </body>
 </html>
